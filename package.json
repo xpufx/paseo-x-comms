@@ -1,0 +1,43 @@
+{
+  "name": "@xpufx/paseo-cross-daemon-comms",
+  "version": "0.1.0",
+  "description": "Cross-daemon agent conversation over Paseo Relay: an MCP server that lets agents on one paseo daemon talk to agents on another (relay offer or direct host).",
+  "type": "module",
+  "bin": {
+    "paseo-cross-daemon-comms": "./paseo-cross-daemon-comms.mjs"
+  },
+  "main": "./paseo-cross-daemon-comms.mjs",
+  "exports": "./paseo-cross-daemon-comms.mjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "paseo-cross-daemon-comms.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/protocol.test.mjs"
+  },
+  "keywords": [
+    "paseo",
+    "mcp",
+    "agent",
+    "relay",
+    "e2ee",
+    "daemon",
+    "cross-daemon"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.4.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpufx/paseo-cross-daemon-comms.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

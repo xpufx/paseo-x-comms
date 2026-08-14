@@ -1,0 +1,5 @@
+{
+  "relay-peer": "https://app.paseo.sh/#offer=<base64 payload from `paseo daemon pair` on the target>",
+  "lan-peer": "10.0.0.5:6767",
+  "vpn-peer": "tcp://100.64.0.5:6767?ssl=true"
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "paseo-cross-daemon-comms": {
+      "command": "paseo-cross-daemon-comms",
+      "type": "stdio"
+    }
+  }
+}
