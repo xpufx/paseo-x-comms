@@ -2,7 +2,7 @@
 
 Cross-daemon agent conversation: an MCP server that lets agents on one paseo
 daemon talk to agents on another paseo daemon, even across hosts. Reaches the
-remote daemon through its relay (WebSocket + E2EE) or directly over TCP.
+daemon (remote or local) through its relay (WebSocket + E2EE) or directly over TCP.
 
 ## How it works
 
@@ -10,10 +10,10 @@ remote daemon through its relay (WebSocket + E2EE) or directly over TCP.
 pi / opencode --MCP stdio--> paseo-cross-daemon-comms (our server)
                                    │  execFile("paseo", [cmd, "--host", <target>, "--json", …])
                                    ▼
-                             paseo CLI --relay (E2EE) or direct TCP--> remote daemon
+                             paseo CLI --relay (E2EE) or direct TCP--> daemon
 ```
 
-- The MCP server is just a **client** of remote daemons: it never runs a
+- The MCP server is just a **client** of daemons: it never runs a
   daemon, and it only *talks* to agents; each agent does its own work on its
   own local daemon.
 - `--host` is an **opaque string**: paseo classifies it automatically: a value
@@ -46,7 +46,7 @@ Requires the `paseo` CLI on PATH. Node ≥ 18.
    (Or, if that daemon is directly reachable over TCP, e.g. LAN, Tailscale, VPN,
    use its address, e.g. `10.0.0.5:6767`, instead of an offer.)
 
-2. On **this** host, write the registry file with a name for that remote
+2. On **this** host, write the registry file with a name for that daemon
    (see `paseo-cross-daemon-comms.example.json` for the format):
 
    `~/.paseo/paseo-cross-daemon-comms.json`:
@@ -72,12 +72,12 @@ Requires the `paseo` CLI on PATH. Node ≥ 18.
 | `paseo_cross_daemon_list_daemons` | List registered daemons (names only) |
 | `paseo_cross_daemon_add_daemon` | Register a daemon: pairing link or direct host |
 | `paseo_cross_daemon_remove_daemon` | Forget a registered daemon |
-| `paseo_cross_daemon_list_agents` | List agents on a remote daemon |
-| `paseo_cross_daemon_inspect` | Inspect an agent on a remote daemon |
-| `paseo_cross_daemon_send` | Send a message/task to an agent on a remote daemon (starts it if idle) |
-| `paseo_cross_daemon_logs` | View an agent's activity/timeline on a remote daemon |
+| `paseo_cross_daemon_list_agents` | List agents on a daemon |
+| `paseo_cross_daemon_inspect` | Inspect an agent on a daemon |
+| `paseo_cross_daemon_send` | Send a message/task to an agent on a daemon (starts it if idle) |
+| `paseo_cross_daemon_logs` | View an agent's activity/timeline on a daemon |
 | `paseo_cross_daemon_wait` | Block until an agent on a daemon is idle; returns `permission` the moment it stalls on a prompt |
-| `paseo_cross_daemon_list_permissions` | List pending permission requests on a remote daemon |
+| `paseo_cross_daemon_list_permissions` | List pending permission requests on a daemon |
 | `paseo_cross_daemon_allow_permission` | Allow an agent's permission request (`reqId` or `all`) |
 | `paseo_cross_daemon_deny_permission` | Deny an agent's permission request (`reqId` or `all`, optional `message`/`interrupt`) |
 
@@ -189,7 +189,7 @@ Communication only. The toolset covers discovery (`list_agents`, `inspect`),
 messaging (`send`), listening (`logs`, `wait`), answering (`allow_permission`,
 `deny_permission`, `list_permissions`), and the daemon registry
 (`list_daemons`, `add_daemon`, `remove_daemon`). It deliberately does not
-operate remote resources: no schedules, terminals, workspaces, or remote
+operate resources on other daemons: no schedules, terminals, workspaces, or
 agent creation.
 
 ## Development
