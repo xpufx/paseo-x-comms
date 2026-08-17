@@ -28,7 +28,7 @@ import { homedir, hostname } from "node:os";
 import { join, dirname } from "node:path";
 import { execFile } from "node:child_process";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 import { z } from "zod";
 
 const REMOTES_FILE =
