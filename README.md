@@ -64,25 +64,31 @@ Requires the `paseo` CLI on PATH. Node ≥ 18.
 3. Discover and talk:
 
    ```
-   paseo_cross_daemon_list_agents(daemon="hsi")
-   paseo_cross_daemon_send(daemon="hsi", agentId="…", prompt="…")
+   paseo_cross_daemon_comms_list_agents(daemon="hsi")
+   paseo_cross_daemon_comms_send(daemon="hsi", agentId="…", prompt="…")
    ```
 
 ## Tools
 
+> Tool names are `paseo_cross_daemon_comms_*`. When a client (pi, opencode)
+> loads this MCP server, it may prefix tool names with its own server
+> registration (for example `paseo_2d_cross_2d_daemon_2d_comms_...` in pi).
+> Match the tool names the client actually exposes in its tool list; the
+> documented names below are the server's own, without any client prefix.
+
 | Tool | Purpose |
 |------|---------|
-| `paseo_cross_daemon_list_daemons` | List registered daemons (names only) |
-| `paseo_cross_daemon_add_daemon` | Register a daemon: pairing link or direct host |
-| `paseo_cross_daemon_remove_daemon` | Forget a registered daemon |
-| `paseo_cross_daemon_list_agents` | List agents on a daemon |
-| `paseo_cross_daemon_inspect` | Inspect an agent on a daemon |
-| `paseo_cross_daemon_send` | Send a message/task to an agent on a daemon (starts it if idle) |
-| `paseo_cross_daemon_logs` | View an agent's activity/timeline on a daemon |
-| `paseo_cross_daemon_wait` | Block until an agent on a daemon is idle; returns `permission` the moment it stalls on a prompt |
-| `paseo_cross_daemon_list_permissions` | List pending permission requests on a daemon |
-| `paseo_cross_daemon_allow_permission` | Allow an agent's permission request (`reqId` or `all`) |
-| `paseo_cross_daemon_deny_permission` | Deny an agent's permission request (`reqId` or `all`, optional `message`/`interrupt`) |
+| `paseo_cross_daemon_comms_list_daemons` | List registered daemons (names only) |
+| `paseo_cross_daemon_comms_add_daemon` | Register a daemon: pairing link or direct host |
+| `paseo_cross_daemon_comms_remove_daemon` | Forget a registered daemon |
+| `paseo_cross_daemon_comms_list_agents` | List agents on a daemon |
+| `paseo_cross_daemon_comms_inspect` | Inspect an agent on a daemon |
+| `paseo_cross_daemon_comms_send` | Send a message/task to an agent on a daemon (starts it if idle) |
+| `paseo_cross_daemon_comms_logs` | View an agent's activity/timeline on a daemon |
+| `paseo_cross_daemon_comms_wait` | Block until an agent on a daemon is idle; returns `permission` the moment it stalls on a prompt |
+| `paseo_cross_daemon_comms_list_permissions` | List pending permission requests on a daemon |
+| `paseo_cross_daemon_comms_allow_permission` | Allow an agent's permission request (`reqId` or `all`) |
+| `paseo_cross_daemon_comms_deny_permission` | Deny an agent's permission request (`reqId` or `all`, optional `message`/`interrupt`) |
 
 ## Message envelope
 

@@ -28,7 +28,7 @@ import { homedir, hostname } from "node:os";
 import { join, dirname } from "node:path";
 import { execFile } from "node:child_process";
 
-const VERSION = "0.2.3";
+const VERSION = "0.3.0";
 import { z } from "zod";
 
 const REMOTES_FILE =
@@ -60,7 +60,7 @@ function hostTargetFor(daemon, daemons) {
   const value = daemons[daemon];
   if (value === undefined) {
     throw new Error(
-      `unknown daemon '${daemon}' (add it to ${REMOTES_FILE} or via paseo_cross_daemon_add_daemon)`,
+      `unknown daemon '${daemon}' (add it to ${REMOTES_FILE} or via paseo_cross_daemon_comms_add_daemon)`,
     );
   }
   const trimmed = String(value).trim();
@@ -210,16 +210,18 @@ const TOOL_SCHEMAS = {
   },
 };
 
-const PREFIX = "paseo_cross_daemon_";
+const PREFIX = "paseo_cross_daemon_comms_";
 
 // Surfaced to clients via the MCP `instructions` field (initialize result) so
 // every model using this server gets the behavioral contract automatically.
 const INSTRUCTIONS = `paseo-cross-daemon-comms: cross-daemon communication for paseo agents.
 
+Tool names are paseo_cross_daemon_comms_* (for example paseo_cross_daemon_comms_list_agents). A client that loads this server may prefix tool names with its own registration name; match the tools the client actually exposes in its tool list rather than these names verbatim.
+
 Capabilities: discover agents on other paseo daemons (list_agents, inspect), message them (send), read their timeline (logs), wait for them (wait), and resolve their permission prompts (list_permissions, allow_permission, deny_permission).
 
 Behavior:
-- send stamps every message with an envelope: [paseo-cross-daemon-comms meta v2] <json> (sender identity, target, sentAt). A message carrying it is from another daemon's agent, not a user: reply to the sender via paseo_cross_daemon_send; on finish, error, or permission need, notify the sender the same way (include permission details when blocked).
+- send stamps every message with an envelope: [paseo-cross-daemon-comms meta v2] <json> (sender identity, target, sentAt). A message carrying it is from another daemon's agent, not a user: reply to the sender via paseo_cross_daemon_comms_send; on finish, error, or permission need, notify the sender the same way (include permission details when blocked).
 - send preempts a busy agent. If the target may be busy, use wait first.
 - Permission prompts: list_permissions to see them, allow_permission/deny_permission to respond.`;
 
