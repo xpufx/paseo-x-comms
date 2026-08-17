@@ -1,6 +1,6 @@
 {
   "name": "@xpufx/paseo-cross-daemon-comms",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Cross-daemon agent conversation over Paseo Relay: an MCP server that lets agents on one paseo daemon talk to agents on another (relay offer or direct host).",
   "type": "module",
   "bin": {

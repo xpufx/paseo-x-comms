@@ -28,7 +28,7 @@ import { homedir, hostname } from "node:os";
 import { join, dirname } from "node:path";
 import { execFile } from "node:child_process";
 
-const VERSION = "0.2.2";
+const VERSION = "0.2.3";
 import { z } from "zod";
 
 const REMOTES_FILE =
@@ -216,13 +216,12 @@ const PREFIX = "paseo_cross_daemon_";
 // every model using this server gets the behavioral contract automatically.
 const INSTRUCTIONS = `paseo-cross-daemon-comms: cross-daemon communication for paseo agents.
 
-Capabilities: discover agents on other paseo daemons (list_agents, inspect), message them (send), read their timeline (logs), wait for them (wait), and resolve their permission prompts (list_permissions, allow_permission, deny_permission). Daemons are configured in a registry file (default ~/.paseo/paseo-cross-daemon-comms.json) mapping a name to a full pairing URL (https://app.paseo.sh/#offer=…) or a direct host (host:port, tcp://…); list_daemons lists the configured names, and add_daemon/remove_daemon manage the registry from an agent session.
+Capabilities: discover agents on other paseo daemons (list_agents, inspect), message them (send), read their timeline (logs), wait for them (wait), and resolve their permission prompts (list_permissions, allow_permission, deny_permission).
 
 Behavior:
-- Every message sent via send is prefixed with a structured envelope: [paseo-cross-daemon-comms meta v2] <json> (sender identity, target, sentAt). Recipients may parse it and reply to the sender's agentId on the sender's daemon. When you finish, error, or need permission, notify the sender via paseo_cross_daemon_send with a one-line summary; if blocked on a permission prompt, include the permission request details (the sender can allow or deny it remotely).
-- send to a busy agent replaces its current run (paseo semantics). If the target may be busy, use wait (with a timeout) before sending, or expect preemption.
-- Agents may block on permission prompts; use list_permissions to see them and allow_permission/deny_permission to respond.
-- Registries contain live pairing offers (serverIds, public keys, relay endpoints). Never disclose or publish them.`;
+- send stamps every message with an envelope: [paseo-cross-daemon-comms meta v2] <json> (sender identity, target, sentAt). A message carrying it is from another daemon's agent, not a user: reply to the sender via paseo_cross_daemon_send; on finish, error, or permission need, notify the sender the same way (include permission details when blocked).
+- send preempts a busy agent. If the target may be busy, use wait first.
+- Permission prompts: list_permissions to see them, allow_permission/deny_permission to respond.`;
 
 // One tool result shape, mirroring paseo's own PaseoToolResult: text content for
 // every client plus structuredContent (a record) for clients that consume it.
