@@ -222,7 +222,6 @@ Behavior:
 - Every message sent via send is prefixed with a structured envelope: [paseo-cross-daemon-comms meta v2] <json> (sender identity, target, sentAt). Recipients may parse it and reply to the sender's agentId on the sender's daemon. When you finish, error, or need permission, notify the sender via paseo_cross_daemon_send with a one-line summary; if blocked on a permission prompt, include the permission request details (the sender can allow or deny it remotely).
 - send to a busy agent replaces its current run (paseo semantics). If the target may be busy, use wait (with a timeout) before sending, or expect preemption.
 - Agents may block on permission prompts; use list_permissions to see them and allow_permission/deny_permission to respond.
-- If a message contains a file payload (e.g., base64 chunks + SHA-256), assemble it exactly and verify the hash before any use (e.g., sha256sum); never hand-write code from memory; request a resend on mismatch. This server has no file-transfer tool.
 - Registries contain live pairing offers (serverIds, public keys, relay endpoints). Never disclose or publish them.`;
 
 // One tool result shape, mirroring paseo's own PaseoToolResult: text content for
