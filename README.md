@@ -61,39 +61,39 @@ Requires the `paseo` CLI on PATH. Node ≥ 18.
 3. Discover and talk:
 
    ```
-   paseo_cross_daemon_list_agents(remote="hsi")
-   paseo_cross_daemon_send(remote="hsi", agentId="…", prompt="…")
+   paseo_cross_daemon_list_agents(daemon="hsi")
+   paseo_cross_daemon_send(daemon="hsi", agentId="…", prompt="…")
    ```
 
 ## Tools
 
 | Tool | Purpose |
 |------|---------|
-| `paseo_cross_daemon_list_remotes` | List registered remote daemons (names only) |
-| `paseo_cross_daemon_add_remote` | Register a remote: pairing link or direct host |
-| `paseo_cross_daemon_remove_remote` | Forget a registered remote |
+| `paseo_cross_daemon_list_daemons` | List registered daemons (names only) |
+| `paseo_cross_daemon_add_daemon` | Register a daemon: pairing link or direct host |
+| `paseo_cross_daemon_remove_daemon` | Forget a registered daemon |
 | `paseo_cross_daemon_list_agents` | List agents on a remote daemon |
 | `paseo_cross_daemon_inspect` | Inspect an agent on a remote daemon |
 | `paseo_cross_daemon_send` | Send a message/task to an agent on a remote daemon (starts it if idle) |
 | `paseo_cross_daemon_logs` | View an agent's activity/timeline on a remote daemon |
-| `paseo_cross_daemon_wait` | Block until a remote agent is idle; returns `permission` the moment it stalls on a prompt |
+| `paseo_cross_daemon_wait` | Block until an agent on a daemon is idle; returns `permission` the moment it stalls on a prompt |
 | `paseo_cross_daemon_list_permissions` | List pending permission requests on a remote daemon |
-| `paseo_cross_daemon_allow_permission` | Allow a remote agent's permission request (`reqId` or `all`) |
-| `paseo_cross_daemon_deny_permission` | Deny a remote agent's permission request (`reqId` or `all`, optional `message`/`interrupt`) |
+| `paseo_cross_daemon_allow_permission` | Allow an agent's permission request (`reqId` or `all`) |
+| `paseo_cross_daemon_deny_permission` | Deny an agent's permission request (`reqId` or `all`, optional `message`/`interrupt`) |
 
 ## Message envelope
 
 `send` prepends a structured sender-meta envelope, one line, JSON:
 
 ```
-[paseo-cross-daemon-comms meta v1] {"paseoCrossDaemonComms":{"version":1,"sender":{…},"target":{…},"sentAt":"…"}}
+[paseo-cross-daemon-comms meta v2] {"paseoCrossDaemonComms":{"version":1,"sender":{…},"target":{…},"sentAt":"…"}}
 ```
 
 - `sender`: agentId, agentName, host, daemonServerId, cwd: who is talking and
   from where. Sources: `agentId`/`cwd` from the environment
   (`PASEO_AGENT_ID` / `PASEO_AGENT_CWD`), `host`/`daemonServerId` from
   `paseo daemon status --json`, `agentName` from `paseo inspect <agentId> --json`.
-- `target`: remote name + recipient agentId.
+- `target`: daemon name + recipient agentId.
 - `sentAt`: ISO timestamp.
 - The prompt text itself stays prose: the meta is for machines, the prompt is
   for humans.
@@ -109,7 +109,7 @@ evolve without breaking older readers.
   `packages/server/src/server/agent/agent-prompt.ts`) on both sides. If a
   target may be busy, wait until it is idle before messaging it, or expect the
   preemption.
-- **Permission loop.** A remote agent may block on a permission prompt; `send`
+- **Permission loop.** An agent may block on a permission prompt; `send`
   returns `permission`, `wait` surfaces it, `list_permissions` shows details,
   and `allow_permission`/`deny_permission` answer. The loop:
   `send` → `wait` → on `permission`: `list_permissions` + allow/deny →
@@ -187,8 +187,8 @@ opencode (`~/.config/opencode/opencode.jsonc`): note the key is `environment`
 
 Communication only. The toolset covers discovery (`list_agents`, `inspect`),
 messaging (`send`), listening (`logs`, `wait`), answering (`allow_permission`,
-`deny_permission`, `list_permissions`), and the remote registry
-(`list_remotes`, `add_remote`, `remove_remote`). It deliberately does not
+`deny_permission`, `list_permissions`), and the daemon registry
+(`list_daemons`, `add_daemon`, `remove_daemon`). It deliberately does not
 operate remote resources: no schedules, terminals, workspaces, or remote
 agent creation.
 

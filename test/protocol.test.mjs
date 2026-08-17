@@ -65,7 +65,7 @@ function textOf(callResult) {
 
 // Extract and parse the structured sender-meta envelope from a stamped prompt.
 function metaOf(stampedPrompt) {
-  const m = stampedPrompt.match(/^\[paseo-cross-daemon-comms meta v1\] (\{.*\})/);
+  const m = stampedPrompt.match(/^\[paseo-cross-daemon-comms meta v2\] (\{.*\})/);
   assert.ok(m, `no meta envelope in: ${stampedPrompt.slice(0, 120)}…`);
   return JSON.parse(m[1]);
 }
@@ -78,15 +78,15 @@ test("lists 11 tools under paseo_cross_daemon_*", async () => {
     const names = tools.map((t) => t.name).sort();
     assert.ok(names.every((n) => n.startsWith(PREFIX)), `unexpected names: ${names.join(", ")}`);
     assert.deepEqual(names, [
-      "paseo_cross_daemon_add_remote",
+      "paseo_cross_daemon_add_daemon",
       "paseo_cross_daemon_allow_permission",
       "paseo_cross_daemon_deny_permission",
       "paseo_cross_daemon_inspect",
       "paseo_cross_daemon_list_agents",
+      "paseo_cross_daemon_list_daemons",
       "paseo_cross_daemon_list_permissions",
-      "paseo_cross_daemon_list_remotes",
       "paseo_cross_daemon_logs",
-      "paseo_cross_daemon_remove_remote",
+      "paseo_cross_daemon_remove_daemon",
       "paseo_cross_daemon_send",
       "paseo_cross_daemon_wait",
     ]);
@@ -99,21 +99,21 @@ test("lists 11 tools under paseo_cross_daemon_*", async () => {
   }
 });
 
-test("list_remotes on empty registry returns []", async () => {
+test("list_daemons on empty registry returns []", async () => {
   const { client, transport } = await startClient();
   try {
-    const res = await client.callTool({ name: `${PREFIX}list_remotes`, arguments: {} });
+    const res = await client.callTool({ name: `${PREFIX}list_daemons`, arguments: {} });
     assert.equal(textOf(res), "[]");
   } finally {
     await client.close();
   }
 });
 
-test("add_remote persists to the registry file", async () => {
+test("add_daemon persists to the registry file", async () => {
   const { client, transport, remotesFile } = await startClient();
   try {
     const res = await client.callTool({
-      name: `${PREFIX}add_remote`,
+      name: `${PREFIX}add_daemon`,
       arguments: { name: "hsi", offer: RELAY_URL },
     });
     assert.equal(JSON.parse(textOf(res)).ok, true);
@@ -124,11 +124,11 @@ test("add_remote persists to the registry file", async () => {
   }
 });
 
-test("add_remote rejects missing required args", async () => {
+test("add_daemon rejects missing required args", async () => {
   const { client, transport } = await startClient();
   try {
     const res = await client.callTool({
-      name: `${PREFIX}add_remote`,
+      name: `${PREFIX}add_daemon`,
       arguments: { name: "x" },
     });
     assert.equal(res.isError, true);
@@ -149,15 +149,15 @@ test("unknown tool is rejected", async () => {
   }
 });
 
-test("remove_remote on unknown name fails visibly", async () => {
+test("remove_daemon on unknown name fails visibly", async () => {
   const { client, transport } = await startClient();
   try {
     const res = await client.callTool({
-      name: `${PREFIX}remove_remote`,
+      name: `${PREFIX}remove_daemon`,
       arguments: { name: "nope" },
     });
     assert.equal(res.isError, true);
-    assert.match(textOf(res), /unknown remote 'nope'/);
+    assert.match(textOf(res), /unknown daemon 'nope'/);
   } finally {
     await client.close();
   }
@@ -168,7 +168,7 @@ test("bare base64 payload is passed through unwrapped (no legacy wrap)", async (
   try {
     const res = await client.callTool({
       name: `${PREFIX}list_agents`,
-      arguments: { remote: "hsi" },
+      arguments: { daemon: "hsi" },
     });
     const agents = JSON.parse(textOf(res));
     assert.equal(agents[0].sawHost, B64_OFFER);
@@ -182,7 +182,7 @@ test("direct host passes through untouched (no relay wrap)", async () => {
   try {
     const res = await client.callTool({
       name: `${PREFIX}list_agents`,
-      arguments: { remote: "dev" },
+      arguments: { daemon: "dev" },
     });
     const agents = JSON.parse(textOf(res));
     assert.equal(agents[0].sawHost, DIRECT_HOST);
@@ -196,7 +196,7 @@ test("full pairing URL passes through untouched", async () => {
   try {
     const res = await client.callTool({
       name: `${PREFIX}list_agents`,
-      arguments: { remote: "hsi" },
+      arguments: { daemon: "hsi" },
     });
     const agents = JSON.parse(textOf(res));
     assert.equal(agents[0].sawHost, RELAY_URL);
@@ -210,7 +210,7 @@ test("send stamps a structured sender-meta envelope and reaches the remote agent
   try {
     const res = await client.callTool({
       name: `${PREFIX}send`,
-      arguments: { remote: "hsi", agentId: "agent-9", prompt: "hello there" },
+      arguments: { daemon: "hsi", agentId: "agent-9", prompt: "hello there" },
     });
     const sent = JSON.parse(textOf(res));
     assert.equal(sent.to, "agent-9");
@@ -218,14 +218,14 @@ test("send stamps a structured sender-meta envelope and reaches the remote agent
     assert.equal(sent.sawNoWait, true, "send must dispatch fire-and-forget (--no-wait)");
     assert.equal(sent.promptHead.split("\n\n")[1], "hello there", "prompt must stay prose");
     const meta = metaOf(sent.promptHead);
-    assert.equal(meta.paseoCrossDaemonComms.version, 1);
+    assert.equal(meta.paseoCrossDaemonComms.version, 2);
     assert.equal(meta.paseoCrossDaemonComms.sender.agentId, "agent-test-1");
     assert.equal(meta.paseoCrossDaemonComms.sender.agentName, "fake-agent");
     assert.equal(meta.paseoCrossDaemonComms.sender.host, "fakehost");
     assert.equal(meta.paseoCrossDaemonComms.sender.daemonServerId, "srv_fake");
     assert.equal(meta.paseoCrossDaemonComms.sender.cwd, "/tmp/test-cwd");
     assert.equal(meta.paseoCrossDaemonComms.target.agentId, "agent-9");
-    assert.equal(meta.paseoCrossDaemonComms.target.remote, "hsi");
+    assert.equal(meta.paseoCrossDaemonComms.target.daemon, "hsi");
     assert.ok(!Number.isNaN(Date.parse(meta.paseoCrossDaemonComms.sentAt)), "sentAt must be ISO");
   } finally {
     await client.close();
@@ -237,13 +237,13 @@ test("inspect and logs round-trip through the fake CLI", async () => {
   try {
     const insp = await client.callTool({
       name: `${PREFIX}inspect`,
-      arguments: { remote: "hsi", agentId: "agent-7" },
+      arguments: { daemon: "hsi", agentId: "agent-7" },
     });
     assert.equal(JSON.parse(textOf(insp)).Name, "fake-agent");
 
     const logs = await client.callTool({
       name: `${PREFIX}logs`,
-      arguments: { remote: "hsi", agentId: "agent-7" },
+      arguments: { daemon: "hsi", agentId: "agent-7" },
     });
     assert.deepEqual(JSON.parse(textOf(logs)).events, []);
   } finally {
@@ -256,7 +256,7 @@ test("wait blocks until idle and passes through timeoutSeconds", async () => {
   try {
     const res = await client.callTool({
       name: `${PREFIX}wait`,
-      arguments: { remote: "hsi", agentId: "agent-9", timeoutSeconds: 30 },
+      arguments: { daemon: "hsi", agentId: "agent-9", timeoutSeconds: 30 },
     });
     const w = JSON.parse(textOf(res));
     assert.equal(w.status, "idle");
@@ -276,7 +276,7 @@ test("wait surfaces the permission kind when the agent is blocked", async () => 
   try {
     const res = await client.callTool({
       name: `${PREFIX}wait`,
-      arguments: { remote: "hsi", agentId: "agent-9" },
+      arguments: { daemon: "hsi", agentId: "agent-9" },
     });
     const w = JSON.parse(textOf(res));
     assert.equal(w.status, "permission");
@@ -297,7 +297,7 @@ test("list_permissions returns pending requests", async () => {
   try {
     const res = await client.callTool({
       name: `${PREFIX}list_permissions`,
-      arguments: { remote: "hsi" },
+      arguments: { daemon: "hsi" },
     });
     const perms = JSON.parse(textOf(res));
     assert.equal(perms[0].id, "per_0009");
@@ -312,7 +312,7 @@ test("allow_permission targets a request and reaches the remote daemon", async (
   try {
     const res = await client.callTool({
       name: `${PREFIX}allow_permission`,
-      arguments: { remote: "hsi", agentId: "agent-9", reqId: "per_0009" },
+      arguments: { daemon: "hsi", agentId: "agent-9", reqId: "per_0009" },
     });
     const granted = JSON.parse(textOf(res));
     assert.equal(granted[0].result, "allowed");
@@ -328,7 +328,7 @@ test("allow_permission requires reqId or all", async () => {
   try {
     const res = await client.callTool({
       name: `${PREFIX}allow_permission`,
-      arguments: { remote: "hsi", agentId: "agent-9" },
+      arguments: { daemon: "hsi", agentId: "agent-9" },
     });
     assert.equal(res.isError, true);
     assert.match(textOf(res), /reqId or all/);
@@ -342,7 +342,7 @@ test("deny_permission supports --all and message", async () => {
   try {
     const res = await client.callTool({
       name: `${PREFIX}deny_permission`,
-      arguments: { remote: "hsi", agentId: "agent-9", all: true, message: "no" },
+      arguments: { daemon: "hsi", agentId: "agent-9", all: true, message: "no" },
     });
     const denied = JSON.parse(textOf(res));
     assert.equal(denied.data[0].result, "denied");
@@ -408,7 +408,7 @@ async function rawHandshake(s) {
   assert.equal(res.result.protocolVersion, "2025-03-26");
   assert.equal(res.result.serverInfo.name, "paseo-cross-daemon-comms");
   assert.equal(res.result.capabilities.tools.listChanged, true); // SDK forces true when tools are registered
-  assert.match(res.result.instructions, /\[paseo-cross-daemon-comms meta v1\]/);
+  assert.match(res.result.instructions, /\[paseo-cross-daemon-comms meta v2\]/);
   s.send({ jsonrpc: "2.0", method: "notifications/initialized" });
 }
 
@@ -421,7 +421,7 @@ test("cancellation kills the in-flight paseo child promptly", async () => {
     jsonrpc: "2.0",
     id: 7,
     method: "tools/call",
-    params: { name: `${PREFIX}list_agents`, arguments: { remote: "hsi" } },
+    params: { name: `${PREFIX}list_agents`, arguments: { daemon: "hsi" } },
   });
   await sleep(400); // let the fake paseo spawn and start sleeping
   s.send({ jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 7 } });
@@ -451,7 +451,7 @@ test("server does not exit while a call is in flight after stdin closes", async 
     jsonrpc: "2.0",
     id: 5,
     method: "tools/call",
-    params: { name: `${PREFIX}list_agents`, arguments: { remote: "hsi" } },
+    params: { name: `${PREFIX}list_agents`, arguments: { daemon: "hsi" } },
   });
   await sleep(300);
   s.child.stdin.end(); // close stdin while the call is in flight
