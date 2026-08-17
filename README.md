@@ -1,8 +1,8 @@
 # paseo-cross-daemon-comms
 
 Cross-daemon agent conversation: an MCP server that lets agents on one paseo
-daemon talk to agents on another paseo daemon, even across hosts. Reaches the
-daemon (remote or local) through its relay (WebSocket + E2EE) or directly over TCP.
+daemon (remote or local) talk to agents on another paseo daemon, even across
+hosts. Reaches the daemon through its relay (WebSocket + E2EE) or directly over TCP.
 
 ## How it works
 
