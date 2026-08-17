@@ -1,8 +1,11 @@
 # paseo-cross-daemon-comms
 
-Cross-daemon agent conversation: an MCP server that lets agents on one paseo
-daemon (remote or local) talk to agents on another paseo daemon, even across
-hosts. Reaches the daemon through its relay (WebSocket + E2EE) or directly over TCP.
+[paseo](https://paseo.sh) is an agent orchestrator: AI coding agents run on
+paseo daemons, each managing its own workspaces, tools, and permissions.
+
+paseo-cross-daemon-comms is an MCP server that lets agents on one paseo daemon
+(remote or local) talk to agents on another paseo daemon, even across hosts,
+through the daemon's relay (WebSocket + E2EE) or directly over TCP.
 
 ## How it works
 
