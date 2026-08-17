@@ -102,6 +102,10 @@ Recipients may parse the envelope and reply to `sender.agentId` on the
 sender's daemon. The envelope is versioned (`version: 1`), so the format can
 evolve without breaking older readers.
 
+For best results, run the same version on each daemon: the envelope format,
+tool names, and parameters evolve between releases, so a mismatched pair still
+works, but the older side answers in its older format.
+
 ## Behavior notes
 
 - **Send is preemptive.** A message to a busy agent replaces its current run
