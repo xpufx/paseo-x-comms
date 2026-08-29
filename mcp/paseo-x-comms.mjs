@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// paseo-cross-daemon-comms: MCP server for cross-daemon agent conversation over Paseo Relay.
+// paseo-x-comms: MCP server for cross-daemon agent conversation over Paseo Relay.
 //
 // Lets agents on one paseo daemon talk to agents on another paseo daemon, even
 // across hosts, via the paseo CLI's `--host <opaque>` flag. paseo classifies
@@ -7,7 +7,7 @@
 // connection (E2EE); anything else is a direct host target (`host:port`,
 // `tcp://…`, `unix://…`, IPC paths, bare port).
 //
-//   Daemons:  ~/.paseo/paseo-cross-daemon-comms/registry.json   { name: "<offer URL | direct host>" }
+//   Daemons:  ~/.paseo/paseo-x-comms/registry.json   { name: "<offer URL | direct host>" }
 //             (the registry file is the primary way to configure daemons;
 //              offer from `paseo daemon pair` on the target, or a direct host)
 //
@@ -18,7 +18,7 @@
 //
 // Env overrides (testability / power users):
 //   PASEO_CROSS_DAEMON_COMMS_REMOTES    registry file path
-//                                     (default ~/.paseo/paseo-cross-daemon-comms/registry.json)
+//                                     (default ~/.paseo/paseo-x-comms/registry.json)
 //   PASEO_CROSS_DAEMON_COMMS_PASEO      paseo binary (default "paseo")
 //   PASEO_CROSS_DAEMON_COMMS_TIMEOUT_MS per paseo call timeout (default 120000)
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -31,7 +31,7 @@ import { execFile } from "node:child_process";
 const VERSION = "0.3.0";
 import { z } from "zod";
 
-const REMOTES_DIR = join(homedir(), ".paseo", "paseo-cross-daemon-comms");
+const REMOTES_DIR = join(homedir(), ".paseo", "paseo-x-comms");
 
 const REMOTES_FILE =
   process.env.PASEO_CROSS_DAEMON_COMMS_REMOTES ||
@@ -41,10 +41,10 @@ const REMOTES_FILE =
 // the namespaced state dir. Forward-only; never a fallback path.
 if (
   !existsSync(REMOTES_FILE) &&
-  existsSync(join(homedir(), ".paseo", "paseo-cross-daemon-comms.json"))
+  existsSync(join(homedir(), ".paseo", "paseo-x-comms.json"))
 ) {
   mkdirSync(REMOTES_DIR, { recursive: true });
-  renameSync(join(homedir(), ".paseo", "paseo-cross-daemon-comms.json"), REMOTES_FILE);
+  renameSync(join(homedir(), ".paseo", "paseo-x-comms.json"), REMOTES_FILE);
 }
 const PASEO = process.env.PASEO_CROSS_DAEMON_COMMS_PASEO || "paseo";
 const DEFAULT_TIMEOUT_MS = Number(process.env.PASEO_CROSS_DAEMON_COMMS_TIMEOUT_MS || 120000);
@@ -227,7 +227,7 @@ const PREFIX = "x_comms_";
 
 // Surfaced to clients via the MCP `instructions` field (initialize result) so
 // every model using this server gets the behavioral contract automatically.
-const INSTRUCTIONS = `paseo-cross-daemon-comms: cross-daemon communication for paseo agents.
+const INSTRUCTIONS = `paseo-x-comms: cross-daemon communication for paseo agents.
 
 Tool names are x_comms_* (for example x_comms_list_agents). A client that loads this server may prefix tool names with its own registration name; match the tools the client actually exposes in its tool list rather than these names verbatim.
 
@@ -440,7 +440,7 @@ function registerTools(server) {
 
 const server = new McpServer(
   {
-    name: "paseo-cross-daemon-comms",
+    name: "paseo-x-comms",
     version: VERSION,
   },
   {

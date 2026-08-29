@@ -40,7 +40,7 @@ function baseEnv(extra = {}) {
 }
 
 function tempRemotes(entries = {}) {
-  const dir = mkdtempSync(join(tmpdir(), "paseo-cross-daemon-comms-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "paseo-x-comms-test-"));
   const file = join(dir, "remotes.json");
   writeFileSync(file, JSON.stringify(entries, null, 2) + "\n");
   return file;
@@ -53,7 +53,7 @@ async function startClient(extraEnv = {}, remotesFile = tempRemotes()) {
     env: baseEnv({ PASEO_CROSS_DAEMON_COMMS_REMOTES: remotesFile, ...extraEnv }),
     stderr: "inherit",
   });
-  const client = new Client({ name: "paseo-cross-daemon-comms-test", version: "1.0.0" });
+  const client = new Client({ name: "paseo-x-comms-test", version: "1.0.0" });
   await client.connect(transport);
   return { client, transport, remotesFile };
 }
@@ -407,7 +407,7 @@ async function rawHandshake(s) {
   const res = await init;
   assert.equal(res.jsonrpc, "2.0");
   assert.equal(res.result.protocolVersion, "2025-03-26");
-  assert.equal(res.result.serverInfo.name, "paseo-cross-daemon-comms");
+  assert.equal(res.result.serverInfo.name, "paseo-x-comms");
   assert.equal(res.result.capabilities.tools.listChanged, true); // SDK forces true when tools are registered
   assert.match(res.result.instructions, /\[x-comms\]/);
   s.send({ jsonrpc: "2.0", method: "notifications/initialized" });
