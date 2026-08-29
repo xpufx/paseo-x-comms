@@ -110,6 +110,9 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       section: { color: theme.colors.foreground, fontSize: 16, fontWeight: "600" as const, marginTop: 20 },
       sectionRow: { flexDirection: "row" as const, alignItems: "center" as const, marginTop: 20 },
       sectionHeader: { flexDirection: "row" as const, alignItems: "center" as const, marginTop: 20 },
+      sectionHeaderRow: { flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "space-between" as const, marginTop: 20 },
+      subSection: { gap: 8, marginTop: 8 },
+      previewBox: { maxHeight: 160, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 6, padding: 8 },
       chevron: { color: theme.colors.accent, fontSize: 14, marginRight: 8 },
       detail: { color: theme.colors.foregroundMuted, fontSize: 13 },
       detailOk: { color: theme.colors.statusSuccess, fontSize: 13 },
@@ -176,6 +179,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
         borderRadius: 8,
         padding: 8,
         marginTop: 4,
+        width: "100%" as const,
       },
     }),
     [theme, layout.compact],
@@ -483,11 +487,8 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
         </>
       ) : null}
 
-      <View style={styles.sectionRow}>
-        <View style={styles.sectionRow}>
-        <Text style={styles.section}>Agent prompt</Text>
-      </View>
-      <View style={{ paddingHorizontal: 16, gap: 8 }}>
+      <Text style={styles.section}>Agent prompt</Text>
+      <View style={styles.subSection}>
         {agentPrompt.isLoading ? (
           <Text style={styles.detail}>Reading daemon system prompt…</Text>
         ) : agentPrompt.error ? (
@@ -499,7 +500,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
                 ? "X-comms block is present in this daemon's agent prompt."
                 : "X-comms block is NOT present in this daemon's agent prompt."}
             </Text>
-            <View style={{ maxHeight: 160, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 6, padding: 8 }}>
+            <View style={styles.previewBox}>
               <ScrollView>
                 <Text style={styles.mono} selectable>
                   {agentPrompt.data?.appendSystemPrompt || "(empty)"}
@@ -526,12 +527,11 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
         )}
       </View>
 
-      <Text style={styles.section}>Registered daemons</Text>
-        <Text style={styles.detail}>(Config</Text>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.section}>Registered daemons</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Copy registry path" onPress={handleCopyPath} hitSlop={10}>
           <Text style={styles.copyIcon}>⧉</Text>
         </Pressable>
-        <Text style={styles.detail}>)</Text>
       </View>
       {read.isPending ? <Text style={styles.detail}>Loading…</Text> : null}
       {!read.data?.exists ? <Text style={styles.detail}>No registry file yet.</Text> : null}
