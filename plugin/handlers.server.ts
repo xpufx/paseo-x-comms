@@ -426,6 +426,18 @@ export function identityFor(daemon: string): string | null {
   return identities[daemon] ?? null;
 }
 
+// The registry is keyed by daemon *name*, but cross-daemon envelopes carry the
+// peer's serverId. identitySync stores name -> serverId, so invert it to map a
+// sender's serverId back to the registered daemon name the send tool expects.
+export function daemonNameForServerId(serverId: string | null): string | null {
+  if (!serverId) return null;
+  const identities = readUiPrefs().daemonIdentities ?? {};
+  for (const [name, id] of Object.entries(identities)) {
+    if (id === serverId) return name;
+  }
+  return null;
+}
+
 async function fetchPeerServerInfo(value: string): Promise<{ serverId: string; hostname: string | null } | null> {
   try {
     const { DaemonClient } = await import("@getpaseo/client/internal/daemon-client");

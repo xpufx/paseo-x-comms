@@ -27,7 +27,7 @@ export function CrossDaemonConversation({
   const send = useMutation({
     mutationFn: () =>
       callSend({
-        daemon: target?.counterparty.daemonServerId ?? target?.counterparty.daemon ?? "",
+        daemon: target?.counterparty.daemon ?? target?.counterparty.daemonServerId ?? "",
         agentId: target?.counterparty.agentId ?? "",
         prompt: draft,
         fromAgentId: agentId,
@@ -69,7 +69,7 @@ export function CrossDaemonConversation({
                 {c.counterparty.agentName ?? c.counterparty.agentId ?? "unknown"}
               </Text>
               <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12 }}>
-                {c.counterparty.daemonServerId ?? c.counterparty.daemon ?? "?"} · {c.messageCount} msgs
+                {c.counterparty.daemon ?? c.counterparty.daemonServerId ?? "?"} · {c.messageCount} msgs
               </Text>
             </Pressable>
           ))}
