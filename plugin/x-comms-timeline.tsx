@@ -27,9 +27,9 @@ const EnvelopeSchema = z.object({
 export type CrossDaemonEnvelope = z.infer<typeof EnvelopeSchema>;
 
 /**
- * Splits a message body into its cross-daemon envelope (if present) and the
+ * Splits a message body into its x-comms envelope (if present) and the
  * remaining human-visible text. The envelope is a prefix our server stamps on
- * every cross-daemon message; its mere presence is the signal we render on.
+ * every x-comms message; its mere presence is the signal we render on.
  */
 export function parseEnvelope(text: string): { envelope: CrossDaemonEnvelope; body: string } | null {
   if (!text.startsWith(META_PREFIX)) return null;
@@ -64,7 +64,7 @@ function CrossDaemonMessage({ theme, item }: PluginTimelineItemProps<z.infer<typ
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
         <Icon name="PhoneOutgoing" size={14} color={theme.colors.accent} />
         <Text style={{ color: theme.colors.accent, fontSize: 12, fontWeight: "600" as const }}>
-          cross-daemon · {label}
+          x-comms · {label}
         </Text>
       </View>
       {item.data.body.length > 0 ? (
@@ -80,7 +80,7 @@ function CrossDaemonMessage({ theme, item }: PluginTimelineItemProps<z.infer<typ
  * distinctly. The envelope is the only discriminator.
  */
 export const crossDaemonTransformer: PluginTimelineTransformerContribution<"user_message"> = {
-  id: "cross-daemon-message",
+  id: "x-comms-message",
   query: { itemType: "user_message" },
   transform({ item }) {
     const parsed = parseEnvelope(item.text);
@@ -89,7 +89,7 @@ export const crossDaemonTransformer: PluginTimelineTransformerContribution<"user
       items: [
         {
           type: "plugin",
-          kind: "cross-daemon-message",
+          kind: "x-comms-message",
           version: 1,
           data: { envelope: parsed.envelope, body: parsed.body },
         },
@@ -99,7 +99,7 @@ export const crossDaemonTransformer: PluginTimelineTransformerContribution<"user
 };
 
 export const crossDaemonRenderer: PluginTimelineRendererContribution<typeof ItemSchema> = {
-  kind: "cross-daemon-message",
+  kind: "x-comms-message",
   version: 1,
   schema: ItemSchema,
   Component: CrossDaemonMessage,

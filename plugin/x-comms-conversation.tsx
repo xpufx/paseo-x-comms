@@ -20,7 +20,7 @@ export function CrossDaemonConversation({
   const [target, setTarget] = useState<ConversationPartner | null>(null);
 
   const conversations = useQuery({
-    queryKey: ["cross-daemon-conversations", agentId],
+    queryKey: ["x-comms-conversations", agentId],
     queryFn: () => deriveConversations(paseo, agentId),
   });
 
@@ -44,7 +44,7 @@ export function CrossDaemonConversation({
   return (
     <View style={{ padding: 12, flex: 1 }}>
       <Text style={{ color: theme.colors.foregroundMuted, fontSize: 13, marginBottom: 8 }}>
-        Cross-daemon conversations
+        X-comms conversations
       </Text>
       {conversations.isLoading ? (
         <ActivityIndicator />
@@ -76,7 +76,7 @@ export function CrossDaemonConversation({
         </ScrollView>
       ) : (
         <Text style={{ color: theme.colors.foregroundMuted, fontSize: 13, marginBottom: 12 }}>
-          No cross-daemon conversations detected.
+          No x-comms conversations detected.
         </Text>
       )}
 

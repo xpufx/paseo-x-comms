@@ -70,8 +70,8 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
   const [dumpOpen, setDumpOpen] = useState(false);
 
   // Agent-prompt (system prompt) block: surface the daemon's appendSystemPrompt
-  // and toggle our marked cross-daemon block. Optional: the tool works without
-  // it via the raw meta envelope; the block makes agents aware of cross-daemon
+  // and toggle our marked x-comms block. Optional: the tool works without
+  // it via the raw meta envelope; the block makes agents aware of x-comms
   // comms in their system prompt.
   const agentPrompt = useQuery({
     queryKey: ["agent-prompt"],
@@ -426,7 +426,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.titleRow}>
-        <Text style={styles.title}>Cross-daemon comms</Text>
+        <Text style={styles.title}>X-comms comms</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Refresh daemon data"
@@ -496,8 +496,8 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
           <>
             <Text style={styles.detail} selectable>
               {agentPrompt.data?.hasBlock
-                ? "Cross-daemon block is present in this daemon's agent prompt."
-                : "Cross-daemon block is NOT present in this daemon's agent prompt."}
+                ? "X-comms block is present in this daemon's agent prompt."
+                : "X-comms block is NOT present in this daemon's agent prompt."}
             </Text>
             <View style={{ maxHeight: 160, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 6, padding: 8 }}>
               <ScrollView>
@@ -515,8 +515,8 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
                 {agentPromptSet.isPending
                   ? "Applying…"
                   : agentPrompt.data?.hasBlock
-                    ? "Remove cross-daemon block"
-                    : "Add cross-daemon block"}
+                    ? "Remove x-comms block"
+                    : "Add x-comms block"}
               </Text>
             </Pressable>
             {agentPromptSet.isError ? (

@@ -3,7 +3,7 @@ import { Icon, type PluginClientContext, type PluginComposerPillProps } from "@g
 import { Modal } from "@getpaseo/plugin/react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Text } from "react-native";
-import { CrossDaemonConversation } from "./cross-daemon-conversation";
+import { CrossDaemonConversation } from "./x-comms-conversation";
 
 function CrossDaemonPill(props: PluginComposerPillProps) {
   const { theme } = props;
@@ -15,7 +15,7 @@ function CrossDaemonPill(props: PluginComposerPillProps) {
     <>
       <Icon name="PhoneOutgoing" size={14} color={theme.colors.accent} />
       <Text numberOfLines={1} style={style}>
-        Cross-daemon
+        X-comms
       </Text>
     </>
   );
@@ -36,7 +36,7 @@ export function openCrossDaemonForAgent(agentId: string): void {
 }
 
 /**
- * One composer pill per agent, opening that agent's cross-daemon conversation
+ * One composer pill per agent, opening that agent's x-comms conversation
  * in a paseo Modal over the composer (not a panel/tab navigation). Pills are
  * seeded from the agent list and follow the agent update stream so they appear
  * and disappear as agents come and go. The Modal is rendered by the pill whose
@@ -51,8 +51,8 @@ export function contributeClient(client: PluginClientContext) {
     pills.set(
       agentId,
       client.addComposerPill({
-        id: "cross-daemon",
-        title: "Cross-daemon",
+        id: "x-comms",
+        title: "X-comms",
         workspaceId,
         agentId,
         Component: ({ theme }) => {
@@ -69,7 +69,7 @@ export function contributeClient(client: PluginClientContext) {
             <>
               <CrossDaemonPill {...{ theme, agentId, workspaceId, host: undefined as never, layout: undefined as never }} />
               <Modal
-                title="Cross-daemon"
+                title="X-comms"
                 icon={<Icon name="PhoneOutgoing" />}
                 open={isOpen}
                 onOpenChange={(open: boolean) => {
@@ -112,7 +112,7 @@ export function contributeClient(client: PluginClientContext) {
       });
     })
     .catch((error: unknown) => {
-      console.error("cross-daemon: could not seed composer pills", error);
+      console.error("x-comms: could not seed composer pills", error);
     });
 
   return () => {

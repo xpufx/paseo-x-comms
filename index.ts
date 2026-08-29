@@ -1,8 +1,8 @@
 import type { PluginContext } from "@getpaseo/plugin";
 import { MainSurface } from "./plugin/main.client";
-import { crossDaemonTransformer, crossDaemonRenderer } from "./plugin/cross-daemon-timeline";
-import { contributeClient } from "./plugin/cross-daemon-pill";
-import { CrossDaemonPanel } from "./plugin/cross-daemon-panel";
+import { crossDaemonTransformer, crossDaemonRenderer } from "./plugin/x-comms-timeline";
+import { contributeClient } from "./plugin/x-comms-pill";
+import { CrossDaemonPanel } from "./plugin/x-comms-panel";
 import {
   handleRegistryRead,
   handleDaemonAdd,
@@ -73,8 +73,8 @@ export default function contribute(plugin: PluginContext) {
   plugin.addTimelineTransformer(crossDaemonTransformer);
   plugin.addTimelineRenderer(crossDaemonRenderer);
   plugin.addWorkspacePanel({
-    id: "cross-daemon",
-    title: "Cross-daemon",
+    id: "x-comms",
+    title: "X-comms",
     icon: "PhoneOutgoing",
     context: "agent",
     Component: CrossDaemonPanel,
@@ -82,7 +82,7 @@ export default function contribute(plugin: PluginContext) {
   plugin.addSurface("main", MainSurface);
   plugin.addSidebarItem({
     id: "main",
-    title: "Cross-daemon comms",
+    title: "X-comms comms",
     icon: "PhoneOutgoing",
     surface: "main",
   });

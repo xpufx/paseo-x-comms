@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// paseo-x-comms: MCP server for cross-daemon agent conversation over Paseo Relay.
+// paseo-x-comms: MCP server for x-comms agent conversation over Paseo Relay.
 //
 // Lets agents on one paseo daemon talk to agents on another paseo daemon, even
 // across hosts, via the paseo CLI's `--host <opaque>` flag. paseo classifies
@@ -227,7 +227,7 @@ const PREFIX = "x_comms_";
 
 // Surfaced to clients via the MCP `instructions` field (initialize result) so
 // every model using this server gets the behavioral contract automatically.
-const INSTRUCTIONS = `paseo-x-comms: cross-daemon communication for paseo agents.
+const INSTRUCTIONS = `paseo-x-comms: x-comms communication for paseo agents.
 
 Tool names are x_comms_* (for example x_comms_list_agents). A client that loads this server may prefix tool names with its own registration name; match the tools the client actually exposes in its tool list rather than these names verbatim.
 

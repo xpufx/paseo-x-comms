@@ -1,5 +1,5 @@
 import { usePaseo } from "@getpaseo/plugin";
-import { parseEnvelope, type CrossDaemonEnvelope } from "./cross-daemon-timeline";
+import { parseEnvelope, type CrossDaemonEnvelope } from "./x-comms-timeline";
 
 type PaseoApi = ReturnType<typeof usePaseo>;
 
@@ -17,7 +17,7 @@ export interface ConversationPartner {
 }
 
 /**
- * Derives the cross-daemon conversations an agent is part of by scanning its
+ * Derives the x-comms conversations an agent is part of by scanning its
  * timeline for our meta envelopes. No separate ledger file: the timeline is the
  * source of truth, so the result is never stale. Grouped by conversationId.
  */

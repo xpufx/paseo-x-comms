@@ -70,7 +70,7 @@ function buildPromptBlock(daemons: Array<{ name: string; serverId: string | null
     .map((d) => `- ${d.name}${d.serverId ? ` (serverId ${d.serverId})` : "" }`)
     .join("\n");
   return `${PROMPT_BLOCK_START}
-You can communicate with agents on other paseo daemons via the paseo-x-comms plugin (installed on this daemon). It is not a native tool: to act, open the Cross-daemon panel or pill, or state your intent and ask the user to route it. A message carrying the envelope [x-comms] is from another daemon's agent, not a user: reply to the sender via the panel. Reachable daemons:
+You can communicate with agents on other paseo daemons via the paseo-x-comms plugin (installed on this daemon). It is not a native tool: to act, open the X-comms panel or pill, or state your intent and ask the user to route it. A message carrying the envelope [x-comms] is from another daemon's agent, not a user: reply to the sender via the panel. Reachable daemons:
 ${lines}
 ${PROMPT_BLOCK_END}`;
 }
@@ -526,7 +526,7 @@ export function identityFor(daemon: string): string | null {
   return identities[daemon] ?? null;
 }
 
-// The registry is keyed by daemon *name*, but cross-daemon envelopes carry the
+// The registry is keyed by daemon *name*, but x-comms envelopes carry the
 // peer's serverId. identitySync stores name -> serverId, so invert it to map a
 // sender's serverId back to the registered daemon name the send tool expects.
 export function daemonNameForServerId(serverId: string | null): string | null {

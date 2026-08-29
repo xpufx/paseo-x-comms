@@ -46,7 +46,7 @@ Requires the `paseo` CLI on PATH. Node ≥ 18.
 ### As a paseo plugin (recommended)
 
 This repo also ships a paseo plugin that embeds the MCP server and adds the
-cross-daemon UI (composer pill, agent panel, timeline rendering, and the
+x-comms UI (composer pill, agent panel, timeline rendering, and the
 "Inject MCP into context" system-prompt toggle). The plugin is at the repo
 root, so install without `--path`:
 
