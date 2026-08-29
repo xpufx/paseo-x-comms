@@ -30,6 +30,8 @@ export function CrossDaemonConversation({
         daemon: target?.counterparty.daemonServerId ?? target?.counterparty.daemon ?? "",
         agentId: target?.counterparty.agentId ?? "",
         prompt: draft,
+        fromAgentId: agentId,
+        fromAgentName: undefined,
       }),
     onSuccess: () => {
       setDraft("");

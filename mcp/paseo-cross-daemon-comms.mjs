@@ -160,14 +160,14 @@ async function gatherSenderMeta(signal) {
   return meta;
 }
 
-async function senderMetaBlock(signal, target = {}) {
+async function senderMetaBlock(signal, target = {}, sender = {}) {
   const m = await gatherSenderMeta(signal);
   const envelope = {
     paseoCrossDaemonComms: {
       version: 2,
       sender: {
-        agentId: m.agentId,
-        agentName: m.agentName,
+        agentId: sender.agentId ?? m.agentId,
+        agentName: sender.agentName ?? m.agentName,
         host: m.host,
         daemonServerId: m.serverId,
         cwd: m.cwd,
@@ -197,7 +197,7 @@ const TOOL_SCHEMAS = {
   removeDaemon: { name: z.string() },
   listAgents: { daemon: z.string() },
   inspect: { daemon: z.string(), agentId: z.string() },
-  send: { daemon: z.string(), agentId: z.string(), prompt: z.string() },
+  send: { daemon: z.string(), agentId: z.string(), prompt: z.string(), fromAgentId: z.string().optional(), fromAgentName: z.string().optional() },
   logs: { daemon: z.string(), agentId: z.string() },
   wait: {
     daemon: z.string(),
@@ -256,6 +256,9 @@ async function handleSend(input, signal) {
   const stamped = `${await senderMetaBlock(signal, {
     agentId: input.agentId,
     daemon: input.daemon,
+  }, {
+    agentId: input.fromAgentId ?? null,
+    agentName: input.fromAgentName ?? null,
   })}\n\n${input.prompt}`;
   return await runPaseo(
     ["send", input.agentId, "--host", target, "--json", "--no-wait", stamped],

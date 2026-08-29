@@ -192,8 +192,8 @@ export async function handleIntroduceAgents(input: {
   try {
     await client.connect();
     const targets = [
-      { daemon: input.first.daemon, agentId: input.first.agentId, message: firstMessage },
-      { daemon: input.second.daemon, agentId: input.second.agentId, message: secondMessage },
+      { daemon: input.first.daemon, agentId: input.first.agentId, fromAgentId: input.first.agentId, fromAgentName: input.first.name, message: firstMessage },
+      { daemon: input.second.daemon, agentId: input.second.agentId, fromAgentId: input.second.agentId, fromAgentName: input.second.name, message: secondMessage },
     ];
     const sends = await Promise.all(
       targets.map(async (target) => {
@@ -202,6 +202,8 @@ export async function handleIntroduceAgents(input: {
             daemon: target.daemon,
             agentId: target.agentId,
             prompt: target.message,
+            fromAgentId: target.fromAgentId ?? null,
+            fromAgentName: target.fromAgentName ?? null,
           });
           return { daemon: target.daemon, agentId: target.agentId, ok: true, error: null };
         } catch (cause) {
@@ -309,7 +311,7 @@ function extractServerVersion(serverPath: string): string | null {
   }
 }
 
-export async function handleConversationSend(input: { daemon: string; agentId: string; prompt: string }) {
+export async function handleConversationSend(input: { daemon: string; agentId: string; prompt: string; fromAgentId?: string; fromAgentName?: string }) {
   const located = await locateServer(readServerPath());
   if (!located.path) {
     return { daemon: input.daemon, agentId: input.agentId, ok: false, error: "MCP server not found; reinstall the plugin" };
@@ -326,6 +328,8 @@ export async function handleConversationSend(input: { daemon: string; agentId: s
       daemon: input.daemon,
       agentId: input.agentId,
       prompt: input.prompt,
+      fromAgentId: input.fromAgentId ?? null,
+      fromAgentName: input.fromAgentName ?? null,
     });
     return { daemon: input.daemon, agentId: input.agentId, ok: true, error: null };
   } catch (cause) {
