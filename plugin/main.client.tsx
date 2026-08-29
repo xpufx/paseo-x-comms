@@ -624,8 +624,22 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
         );
       })}
 
-      {dumpState ? (
-        <View style={styles.cardRow}>
+      <Modal
+        visible={dumpState !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDumpState(null)}
+      >
+        <View style={styles.pickerBackdrop}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerSheetHeader}>
+              <Text style={styles.pickerSheetTitle}>Debug: {dumpDaemon ?? ""}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close debug" onPress={() => setDumpState(null)} style={styles.pickerCloseBtn}>
+                <Text style={styles.pickerCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView style={styles.pickerScroll}>
+              <View style={styles.cardRow}>
           {(() => {
             const d = dumpState as any;
             return (
@@ -688,8 +702,11 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
               </>
             );
           })()}
+              </View>
+              </ScrollView>
+          </View>
         </View>
-      ) : null}
+      </Modal>
 
       <Text style={styles.section}>Add daemon</Text>
       <Text style={styles.label}>Host (the daemon's real name; derived for relay links)</Text>
