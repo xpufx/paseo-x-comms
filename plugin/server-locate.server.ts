@@ -8,14 +8,14 @@ import { execFile } from "node:child_process";
 // (from a local directory or a git clone) it records the resolved source
 // directory in its own config under `plugins[<id>].path`. That directory is the
 // on-disk checkout the plugin actually runs from, so the server is its sibling:
-//   <configuredPath>/mcp/paseo-cross-daemon-comms.mjs
+//   <configuredPath>/mcp/paseo-x-comms.mjs
 // Reading our own install record is the reliable way to find it: the bundled
 // plugin subprocess gets no source-dir handle from the SDK, and import.meta.url
 // points at paseo's worker, not our checkout.
-export const PLUGIN_ID = "paseo-cross-daemon-comms-plugin";
+export const PLUGIN_ID = "paseo-x-comms-plugin";
 
-const SERVER_RELATIVE = join("mcp", "paseo-cross-daemon-comms.mjs");
-const LEGACY_TOOLS_PATH = join(homedir(), ".paseo", "tools", "paseo-cross-daemon-comms", "paseo-cross-daemon-comms.mjs");
+const SERVER_RELATIVE = join("mcp", "paseo-x-comms.mjs");
+const LEGACY_TOOLS_PATH = join(homedir(), ".paseo", "tools", "paseo-x-comms", "paseo-x-comms.mjs");
 
 function paseoHome(): string {
   return process.env.PASEO_HOME && process.env.PASEO_HOME.length > 0
@@ -81,7 +81,7 @@ export { LEGACY_TOOLS_PATH };
 const SERVER_DEPS = ["@modelcontextprotocol/sdk", "zod"];
 
 function repoRootFor(serverPath: string): string {
-  // serverPath is <checkout>/mcp/paseo-cross-daemon-comms.mjs; the package.json
+  // serverPath is <checkout>/mcp/paseo-x-comms.mjs; the package.json
   // with the deps is at <checkout> (the repo root the plugin runs from).
   return dirname(dirname(serverPath));
 }

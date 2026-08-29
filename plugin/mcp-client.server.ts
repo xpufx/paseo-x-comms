@@ -3,7 +3,7 @@ import { createInterface } from "node:readline";
 import { randomUUID } from "node:crypto";
 
 /**
- * Minimal MCP stdio client for talking to the installed paseo-cross-daemon-comms
+ * Minimal MCP stdio client for talking to the installed paseo-x-comms
  * server. Deliberately dependency-free: the handshake is small and stable
  * (initialize -> notifications/initialized -> tools/call), and it keeps the
  * plugin bundle lean instead of bundling the whole MCP SDK.
@@ -64,7 +64,7 @@ export class McpStdioClient {
     const init = (await this.request("initialize", {
       protocolVersion: "2025-03-26",
       capabilities: {},
-      clientInfo: { name: "paseo-cross-daemon-comms-plugin", version: "0.0.1" },
+      clientInfo: { name: "paseo-x-comms-plugin", version: "0.0.1" },
     })) as { serverInfo?: unknown; capabilities?: unknown };
     this.send({ jsonrpc: "2.0", method: "notifications/initialized" });
     this.initialized = true;

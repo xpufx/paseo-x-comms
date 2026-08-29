@@ -3,9 +3,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 // All plugin state lives under a single namespaced subdir of paseo's home
-// (~/.paseo/paseo-cross-daemon-comms/) rather than littering ~/.paseo root.
+// (~/.paseo/paseo-x-comms/) rather than littering ~/.paseo root.
 export function stateDir(): string {
-  return join(homedir(), ".paseo", "paseo-cross-daemon-comms");
+  return join(homedir(), ".paseo", "paseo-x-comms");
 }
 
 export const REGISTRY_DEFAULT = join(stateDir(), "registry.json");
@@ -86,7 +86,7 @@ export function parseRegistry(content: string): {
 export function currentRegistryPath(): string {
   const env = process.env.PASEO_CROSS_DAEMON_COMMS_REMOTES;
   if (env && env.length > 0) return env;
-  migrateFromRoot("paseo-cross-daemon-comms.json", REGISTRY_DEFAULT);
+  migrateFromRoot("paseo-x-comms.json", REGISTRY_DEFAULT);
   return REGISTRY_DEFAULT;
 }
 

@@ -1,11 +1,11 @@
 {
-  "name": "@xpufx/paseo-cross-daemon-comms",
+  "name": "@xpufx/paseo-x-comms",
   "version": "0.3.0",
   "description": "Cross-daemon agent conversation over Paseo Relay: a Paseo plugin that bundles the MCP server so agents on one daemon can talk to agents on another (relay offer or direct host).",
   "type": "module",
   "private": true,
   "bin": {
-    "paseo-cross-daemon-comms": "./mcp/paseo-cross-daemon-comms.mjs"
+    "paseo-cross-daemon-comms": "./mcp/paseo-x-comms.mjs"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

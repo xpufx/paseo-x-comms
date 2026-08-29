@@ -5,7 +5,7 @@ import { currentRegistryPath, readRegistry, stateDir, migrateFromRoot } from "./
 
 const PROBE_TIMEOUT_MS = 15000;
 const SNAPSHOT_FILE = join(stateDir(), "snapshot.json");
-migrateFromRoot("paseo-cross-daemon-comms-snapshot.json", SNAPSHOT_FILE);
+migrateFromRoot("paseo-x-comms-snapshot.json", SNAPSHOT_FILE);
 const STALE_MS = 60_000;
 
 export interface SnapshotAgent {

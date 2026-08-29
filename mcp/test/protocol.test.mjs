@@ -1,4 +1,4 @@
-// Hermetic protocol tests for paseo-cross-daemon-comms.
+// Hermetic protocol tests for paseo-x-comms.
 //
 // Everything runs against a fake paseo CLI (test/fixtures/fake-paseo.mjs) and a
 // temp remotes registry; never a real paseo daemon, never ~/.paseo, never the
@@ -17,7 +17,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SERVER = join(HERE, "..", "paseo-cross-daemon-comms.mjs");
+const SERVER = join(HERE, "..", "paseo-x-comms.mjs");
 const FAKE = join(HERE, "fixtures", "fake-paseo.mjs");
 
 // Bare base64 payload (old `paseo daemon pair` format). The new implementation

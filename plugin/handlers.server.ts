@@ -62,15 +62,15 @@ export function hostnameFor(daemon: string): string | null {
 const LOCAL_DIRECT = "local-direct";
 // Marker delimiting the block we append to the daemon's appendSystemPrompt.
 // Strip only removes our marked block so user-authored prompt text is preserved.
-const PROMPT_BLOCK_START = "<!-- paseo-cross-daemon-comms-system-prompt -->";
-const PROMPT_BLOCK_END = "<!-- /paseo-cross-daemon-comms-system-prompt -->";
+const PROMPT_BLOCK_START = "<!-- paseo-x-comms-system-prompt -->";
+const PROMPT_BLOCK_END = "<!-- /paseo-x-comms-system-prompt -->";
 
 function buildPromptBlock(daemons: Array<{ name: string; serverId: string | null }>): string {
   const lines = daemons
     .map((d) => `- ${d.name}${d.serverId ? ` (serverId ${d.serverId})` : "" }`)
     .join("\n");
   return `${PROMPT_BLOCK_START}
-You can communicate with agents on other paseo daemons via the paseo-cross-daemon-comms plugin (installed on this daemon). It is not a native tool: to act, open the Cross-daemon panel or pill, or state your intent and ask the user to route it. A message carrying the envelope [x-comms] is from another daemon's agent, not a user: reply to the sender via the panel. Reachable daemons:
+You can communicate with agents on other paseo daemons via the paseo-x-comms plugin (installed on this daemon). It is not a native tool: to act, open the Cross-daemon panel or pill, or state your intent and ask the user to route it. A message carrying the envelope [x-comms] is from another daemon's agent, not a user: reply to the sender via the panel. Reachable daemons:
 ${lines}
 ${PROMPT_BLOCK_END}`;
 }
@@ -102,7 +102,7 @@ async function withLocalDaemon<T>(
   const { url, e2ee } = peerUrl(entry.value);
   const client = new DaemonClient({
     url,
-    clientId: "paseo-cross-daemon-comms-prompt-" + Date.now(),
+    clientId: "paseo-x-comms-prompt-" + Date.now(),
     clientType: "cli",
     e2ee,
     connectTimeoutMs: 15000,
@@ -249,7 +249,7 @@ export async function handleIntrospectAgents() {
 
 import { McpStdioClient } from "./mcp-client.server";
 
-// Sends go through the bundled paseo-cross-daemon-comms server over stdio MCP,
+// Sends go through the bundled paseo-x-comms server over stdio MCP,
 // so every message carries the meta envelope (sender identity) stamped by the
 // server itself. Each recipient gets the other party's address so a real
 // two-way reply is possible, not just two one-way drops.
@@ -480,7 +480,7 @@ import { readFileSync as readPrefsFile, writeFileSync as writePrefsFile, existsS
 import { stateDir, migrateFromRoot } from "./registry.server";
 
 const UI_PREFS_FILE = join(stateDir(), "plugin.json");
-migrateFromRoot("paseo-cross-daemon-comms-plugin.json", UI_PREFS_FILE);
+migrateFromRoot("paseo-x-comms-plugin.json", UI_PREFS_FILE);
 
 interface UiPrefsState {
   prereqsCollapsed?: boolean;
@@ -544,7 +544,7 @@ async function fetchPeerServerInfo(value: string): Promise<{ serverId: string; h
     const { url, e2ee } = peerUrl(value);
     const client = new DaemonClient({
       url,
-      clientId: "paseo-cross-daemon-comms-ident-" + Date.now(),
+      clientId: "paseo-x-comms-ident-" + Date.now(),
       clientType: "cli",
       e2ee,
       connectTimeoutMs: 8000,
@@ -681,7 +681,7 @@ export async function handleDaemonDump(input: { daemon: string }) {
   const transport = e2ee.enabled ? "relay" : "direct";
   const client = new DaemonClient({
     url,
-    clientId: "paseo-cross-daemon-comms-debug-" + Date.now(),
+    clientId: "paseo-x-comms-debug-" + Date.now(),
     clientType: "cli",
     e2ee,
     connectTimeoutMs: 15000,

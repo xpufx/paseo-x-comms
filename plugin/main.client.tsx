@@ -87,7 +87,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
   const [introFirst, setIntroFirst] = useState<{ daemon: string; agentId: string; shortId: string; name: string } | null>(null);
   const [introSecond, setIntroSecond] = useState<{ daemon: string; agentId: string; shortId: string; name: string } | null>(null);
   const [introMessage, setIntroMessage] = useState(
-    "Hello! I was asked to introduce you. This daemon can communicate with you directly via paseo-cross-daemon-comms.",
+    "Hello! I was asked to introduce you. This daemon can communicate with you directly via paseo-x-comms.",
   );
 
   const styles = useMemo(
