@@ -642,6 +642,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
               <View style={styles.cardRow}>
           {(() => {
             const d = dumpState as any;
+            if (!d) return null;
             return (
               <>
                 <Text style={styles.mono} selectable>{d.name}{d.reached ? " (reached)" : " (unreachable)"} · transport: {String(d.transport ?? "-")}</Text>
