@@ -239,7 +239,7 @@ export const serverLocateRpc = defineRpc({
 });
 
 export const agentPromptGetRpc = defineRpc({
-  name: "agentPrompt.get",
+  name: "agent_prompt.get",
   input: z.object({}),
   output: z.object({
     appendSystemPrompt: z.string(),
@@ -248,7 +248,7 @@ export const agentPromptGetRpc = defineRpc({
 });
 
 export const agentPromptSetRpc = defineRpc({
-  name: "agentPrompt.set",
+  name: "agent_prompt.set",
   input: z.object({ enabled: z.boolean() }),
   output: z.object({
     appendSystemPrompt: z.string(),

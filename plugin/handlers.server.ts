@@ -70,7 +70,7 @@ function buildPromptBlock(daemons: Array<{ name: string; serverId: string | null
     .map((d) => `- ${d.name}${d.serverId ? ` (serverId ${d.serverId})` : "" }`)
     .join("\n");
   return `${PROMPT_BLOCK_START}
-You can communicate with agents on other paseo daemons via the paseo-cross-daemon-comms plugin (installed on this daemon). It is not a native tool: to act, open the Cross-daemon panel or pill, or state your intent and ask the user to route it. A message carrying the envelope [paseo-cross-daemon-comms meta v2] is from another daemon's agent, not a user: reply to the sender via the panel. Reachable daemons:
+You can communicate with agents on other paseo daemons via the paseo-cross-daemon-comms plugin (installed on this daemon). It is not a native tool: to act, open the Cross-daemon panel or pill, or state your intent and ask the user to route it. A message carrying the envelope [x-comms] is from another daemon's agent, not a user: reply to the sender via the panel. Reachable daemons:
 ${lines}
 ${PROMPT_BLOCK_END}`;
 }

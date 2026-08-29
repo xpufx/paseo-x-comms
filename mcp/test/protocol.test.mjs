@@ -65,7 +65,7 @@ function textOf(callResult) {
 
 // Extract and parse the structured sender-meta envelope from a stamped prompt.
 function metaOf(stampedPrompt) {
-  const m = stampedPrompt.match(/^\[paseo-cross-daemon-comms meta v2\] (\{.*\})/);
+  const m = stampedPrompt.match(/^\[x-comms\] (\{.*\})/);
   assert.ok(m, `no meta envelope in: ${stampedPrompt.slice(0, 120)}…`);
   return JSON.parse(m[1]);
 }
@@ -218,15 +218,15 @@ test("send stamps a structured sender-meta envelope and reaches the remote agent
     assert.equal(sent.sawNoWait, true, "send must dispatch fire-and-forget (--no-wait)");
     assert.equal(sent.promptHead.split("\n\n")[1], "hello there", "prompt must stay prose");
     const meta = metaOf(sent.promptHead);
-    assert.equal(meta.paseoCrossDaemonComms.version, 2);
-    assert.equal(meta.paseoCrossDaemonComms.sender.agentId, "agent-test-1");
-    assert.equal(meta.paseoCrossDaemonComms.sender.agentName, "fake-agent");
-    assert.equal(meta.paseoCrossDaemonComms.sender.host, "fakehost");
-    assert.equal(meta.paseoCrossDaemonComms.sender.daemonServerId, "srv_fake");
-    assert.equal(meta.paseoCrossDaemonComms.sender.cwd, "/tmp/test-cwd");
-    assert.equal(meta.paseoCrossDaemonComms.target.agentId, "agent-9");
-    assert.equal(meta.paseoCrossDaemonComms.target.daemon, "hsi");
-    assert.ok(!Number.isNaN(Date.parse(meta.paseoCrossDaemonComms.sentAt)), "sentAt must be ISO");
+    assert.equal(meta.xComms.version, 2);
+    assert.equal(meta.xComms.sender.agentId, "agent-test-1");
+    assert.equal(meta.xComms.sender.agentName, "fake-agent");
+    assert.equal(meta.xComms.sender.host, "fakehost");
+    assert.equal(meta.xComms.sender.daemonServerId, "srv_fake");
+    assert.equal(meta.xComms.sender.cwd, "/tmp/test-cwd");
+    assert.equal(meta.xComms.target.agentId, "agent-9");
+    assert.equal(meta.xComms.target.daemon, "hsi");
+    assert.ok(!Number.isNaN(Date.parse(meta.xComms.sentAt)), "sentAt must be ISO");
   } finally {
     await client.close();
   }
@@ -408,7 +408,7 @@ async function rawHandshake(s) {
   assert.equal(res.result.protocolVersion, "2025-03-26");
   assert.equal(res.result.serverInfo.name, "paseo-cross-daemon-comms");
   assert.equal(res.result.capabilities.tools.listChanged, true); // SDK forces true when tools are registered
-  assert.match(res.result.instructions, /\[paseo-cross-daemon-comms meta v2\]/);
+  assert.match(res.result.instructions, /\[x-comms\]/);
   s.send({ jsonrpc: "2.0", method: "notifications/initialized" });
 }
 
