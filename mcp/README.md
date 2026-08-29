@@ -35,11 +35,30 @@ pi / opencode --MCP stdio--> paseo-cross-daemon-comms (our server)
 
 ## Install
 
+### As a standalone MCP server
+
 ```sh
 npm install -g @xpufx/paseo-cross-daemon-comms
 ```
 
 Requires the `paseo` CLI on PATH. Node ≥ 18.
+
+### As a paseo plugin (recommended)
+
+This repo also ships a paseo plugin that embeds the MCP server and adds the
+cross-daemon UI (composer pill, agent panel, timeline rendering, and the
+"Inject MCP into context" system-prompt toggle). The plugin is at the repo
+root, so install without `--path`:
+
+```sh
+paseo plugin add <owner>/paseo-cross-daemon-comms
+```
+
+paseo runs a single `npm install` at the repo root, which pulls both the
+plugin dependencies and the embedded server's dependencies (`@modelcontextprotocol/sdk`,
+`zod`) into one `node_modules`. The server is spawned from `./mcp` and resolves
+its deps from that shared tree; no separate server install or PATH entry is
+required.
 
 ## Quick start
 

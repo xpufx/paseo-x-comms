@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { type PluginSurfaceProps, useRpc } from "@getpaseo/plugin";
 import React, { useCallback, useMemo, useState } from "react";
-import { Alert, Clipboard, Linking, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Clipboard, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import {
   registryReadRpc,
   daemonAddRpc,
@@ -92,7 +92,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       sectionRow: { flexDirection: "row" as const, alignItems: "center" as const, marginTop: 20 },
       sectionHeader: { flexDirection: "row" as const, alignItems: "center" as const, marginTop: 20 },
       chevron: { color: theme.colors.accent, fontSize: 14, marginRight: 8 },
-      configLink: { color: theme.colors.accent, textDecorationLine: "underline" as const, fontSize: 13, marginLeft: 6 },
       detail: { color: theme.colors.foregroundMuted, fontSize: 13 },
       detailOk: { color: theme.colors.statusSuccess, fontSize: 13 },
       detailWarn: { color: theme.colors.statusWarning, fontSize: 13 },
@@ -432,11 +431,10 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
 
       <Pressable accessibilityRole="button" onPress={togglePrereqs} style={styles.sectionHeader}>
         <Text style={styles.chevron}>{prereqsCollapsed ? "▸" : "▾"}</Text>
-        <Text style={styles.section}>Prerequisites</Text>
+        <Text style={styles.section}>Server</Text>
       </Pressable>
       {!prereqsCollapsed ? (
         <>
-          <Text style={styles.section}>MCP server (bundled)</Text>
           {locate.data ? (
             <Text style={styles.detail} selectable>
               {locate.data.path ? `server found${locate.data.configured ? " (configured)" : ""} at ${locate.data.path}` : "server not found"}
@@ -457,33 +455,18 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
             </Pressable>
           ) : null}
           {locate.data?.path ? (
-            <>
-              <Text style={styles.detail}>The server ships with the plugin; no separate install is needed.</Text>
-              {check.data ? (
-                <Text style={[styles.detail, check.data.match ? styles.detailOk : styles.detailWarn]} selectable>
-                  {check.data.error
-                    ? `server at ${check.data.path} failed to report a version: ${check.data.error}`
-                    : check.data.match
-                      ? `server reports v${check.data.version} (matches plugin v${check.data.expected})`
-                      : `server reports v${check.data.version}, plugin expects v${check.data.expected}`}
-                </Text>
-              ) : null}
-            </>
+            check.data ? (
+              <Text style={[styles.detail, check.data.match ? styles.detailOk : styles.detailWarn]} selectable>
+                {check.data.error
+                  ? `server at ${check.data.path} failed to report a version: ${check.data.error}`
+                  : check.data.match
+                    ? `server reports v${check.data.version} (matches plugin v${check.data.expected})`
+                    : `server reports v${check.data.version}, plugin expects v${check.data.expected}`}
+              </Text>
+            ) : null
           ) : (
             <Text style={styles.detail}>Server not located. Reinstall the plugin, or set an explicit path above.</Text>
           )}
-          <Text style={styles.detail}>
-            To use the cross-daemon tools, register this server in each client you
-            use (pi, opencode) and restart the client. Registration is a manual
-            client-side step; this plugin does not configure clients.
-          </Text>
-          <Text style={styles.detail}>
-            See the{" "}
-            <Text style={styles.configLink} selectable onPress={() => void Linking.openURL("https://github.com/xpufx/paseo-cross-daemon-comms")}>
-              paseo-cross-daemon-comms documentation on GitHub
-            </Text>{" "}
-            for the registration snippets and the registry format.
-          </Text>
         </>
       ) : null}
 
@@ -582,6 +565,14 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
                     <Pressable accessibilityRole="button" accessibilityLabel={`Copy host value for ${daemon.name}`} onPress={() => handleCopy(daemon.value)} hitSlop={10}>
                       <Text style={styles.copyIcon}>⧉</Text>
                     </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Debug daemon ${daemon.name}`}
+                      onPress={() => { setDumpDaemon(daemon.name); dump.mutate({ daemon: daemon.name }); }}
+                      hitSlop={10}
+                    >
+                      <Text style={styles.copyIcon}>{dumpDaemon === daemon.name && dump.isPending ? "…" : "🐞"}</Text>
+                    </Pressable>
                   </View>
                   {h ? (
                     h.reachable ? (
@@ -633,19 +624,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
         );
       })}
 
-      <Text style={styles.section}>Debug daemon</Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {read.data?.daemons.map((daemon) => (
-          <Pressable
-            key={daemon.name}
-            accessibilityRole="button"
-            onPress={() => { setDumpDaemon(daemon.name); dump.mutate({ daemon: daemon.name }); }}
-            style={styles.buttonSmall}
-          >
-            <Text style={styles.buttonTextSmall}>{dumpDaemon === daemon.name && dump.isPending ? "…" : daemon.name}</Text>
-          </Pressable>
-        ))}
-      </View>
       {dumpState ? (
         <View style={styles.cardRow}>
           {(() => {

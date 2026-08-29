@@ -69,7 +69,7 @@ export default function contribute(plugin: PluginContext) {
   plugin.addWorkspacePanel({
     id: "cross-daemon",
     title: "Cross-daemon",
-    icon: "ArrowLeftRight",
+    icon: "PhoneOutgoing",
     context: "agent",
     Component: CrossDaemonPanel,
   });
@@ -77,7 +77,7 @@ export default function contribute(plugin: PluginContext) {
   plugin.addSidebarItem({
     id: "main",
     title: "Cross-daemon comms",
-    icon: "Server",
+    icon: "PhoneOutgoing",
     surface: "main",
   });
   return () => {};
