@@ -426,7 +426,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.titleRow}>
-        <Text style={styles.title}>X-comms comms</Text>
+        <Text style={styles.title}>X-comms</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Refresh daemon data"

@@ -82,7 +82,7 @@ export default function contribute(plugin: PluginContext) {
   plugin.addSurface("main", MainSurface);
   plugin.addSidebarItem({
     id: "main",
-    title: "X-comms comms",
+    title: "X-comms",
     icon: "PhoneOutgoing",
     surface: "main",
   });
