@@ -1,5 +1,9 @@
 # paseo-cross-daemon-comms
 
+> This repo closely follows the latest beta versions of paseo in order to benefit
+> from new features in the plugin system. Expect breaking changes between
+> versions.
+
 [paseo](https://paseo.sh) is an agent orchestrator: AI coding agents run on
 paseo daemons, each managing its own workspaces, tools, and permissions.
 
