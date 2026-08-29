@@ -281,8 +281,8 @@ export async function handleIntroduceAgents(input: {
   }
   const firstLabel = `Agent ${input.first.shortId} (${input.first.name}) on daemon "${input.first.daemon}"`;
   const secondLabel = `Agent ${input.second.shortId} (${input.second.name}) on daemon "${input.second.daemon}"`;
-  const firstMessage = `${input.message.trim()}\n\nYou have been introduced to ${secondLabel}. To reply, use paseo_cross_daemon_comms_send with daemon="${input.second.daemon}" and agentId="${input.second.agentId}". Your messages will be delivered with a sender envelope the other agent can use to reply.`;
-  const secondMessage = `${input.message.trim()}\n\nYou have been introduced to ${firstLabel}. To reply, use paseo_cross_daemon_comms_send with daemon="${input.first.daemon}" and agentId="${input.first.agentId}". Your messages will be delivered with a sender envelope the other agent can use to reply.`;
+  const firstMessage = `${input.message.trim()}\n\nYou have been introduced to ${secondLabel}. To reply, use x_comms_send with daemon="${input.second.daemon}" and agentId="${input.second.agentId}". Your messages will be delivered with a sender envelope the other agent can use to reply.`;
+  const secondMessage = `${input.message.trim()}\n\nYou have been introduced to ${firstLabel}. To reply, use x_comms_send with daemon="${input.first.daemon}" and agentId="${input.first.agentId}". Your messages will be delivered with a sender envelope the other agent can use to reply.`;
 
   const client = new McpStdioClient(serverPath);
   try {
@@ -294,7 +294,7 @@ export async function handleIntroduceAgents(input: {
     const sends = await Promise.all(
       targets.map(async (target) => {
         try {
-          await client.callTool("paseo_cross_daemon_comms_send", {
+          await client.callTool("x_comms_send", {
             daemon: target.daemon,
             agentId: target.agentId,
             prompt: target.message,
@@ -424,7 +424,7 @@ export async function handleConversationSend(input: { daemon: string; agentId: s
   const sendDaemon = daemonNameForServerId(input.daemon) ?? input.daemon;
   try {
     await client.connect();
-    await client.callTool("paseo_cross_daemon_comms_send", {
+    await client.callTool("x_comms_send", {
       daemon: sendDaemon,
       agentId: input.agentId,
       prompt: input.prompt,

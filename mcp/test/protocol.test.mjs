@@ -27,7 +27,7 @@ const B64_OFFER = "eyJ2IjoyLCJzZXJ2ZXJJZCI6InNydl9mYWtlIiwiZGFlbW9uUHVibGljS2V5Q
 const RELAY_URL = `https://app.paseo.sh/#offer=${B64_OFFER}`;
 const DIRECT_HOST = "10.0.0.5:6767";
 
-const PREFIX = "paseo_cross_daemon_comms_";
+const PREFIX = "x_comms_";
 
 function baseEnv(extra = {}) {
   return {
@@ -78,17 +78,17 @@ test("lists 11 tools under paseo_cross_daemon_*", async () => {
     const names = tools.map((t) => t.name).sort();
     assert.ok(names.every((n) => n.startsWith(PREFIX)), `unexpected names: ${names.join(", ")}`);
     assert.deepEqual(names, [
-      "paseo_cross_daemon_comms_add_daemon",
-      "paseo_cross_daemon_comms_allow_permission",
-      "paseo_cross_daemon_comms_deny_permission",
-      "paseo_cross_daemon_comms_inspect",
-      "paseo_cross_daemon_comms_list_agents",
-      "paseo_cross_daemon_comms_list_daemons",
-      "paseo_cross_daemon_comms_list_permissions",
-      "paseo_cross_daemon_comms_logs",
-      "paseo_cross_daemon_comms_remove_daemon",
-      "paseo_cross_daemon_comms_send",
-      "paseo_cross_daemon_comms_wait",
+      PREFIX + "add_daemon",
+      PREFIX + "allow_permission",
+      PREFIX + "deny_permission",
+      PREFIX + "inspect",
+      PREFIX + "list_agents",
+      PREFIX + "list_daemons",
+      PREFIX + "list_permissions",
+      PREFIX + "logs",
+      PREFIX + "remove_daemon",
+      PREFIX + "send",
+      PREFIX + "wait",
     ]);
     for (const t of tools) {
       assert.ok(t.description?.length > 0, `missing description on ${t.name}`);
