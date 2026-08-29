@@ -1,0 +1,43 @@
+{
+  "name": "@xpufx/paseo-cross-daemon-comms",
+  "version": "0.3.0",
+  "description": "Cross-daemon agent conversation over Paseo Relay: a Paseo plugin that bundles the MCP server so agents on one daemon can talk to agents on another (relay offer or direct host).",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "paseo-cross-daemon-comms": "./mcp/paseo-cross-daemon-comms.mjs"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test mcp/test/protocol.test.mjs"
+  },
+  "keywords": [
+    "paseo",
+    "mcp",
+    "agent",
+    "relay",
+    "e2ee",
+    "daemon",
+    "cross-daemon",
+    "plugin"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@getpaseo/client": "0.7.0-beta.2",
+    "@getpaseo/plugin": "0.7.0-beta.2",
+    "@getpaseo/protocol": "0.7.0-beta.2",
+    "@tanstack/react-query": "^5.90.11",
+    "@types/react": "~19.2.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "typescript": "^5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xpufx/paseo-cross-daemon-comms.git"
+  }
+}

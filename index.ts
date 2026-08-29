@@ -1,8 +1,8 @@
 import type { PluginContext } from "@getpaseo/plugin";
-import { MainSurface } from "./main.client";
-import { crossDaemonTransformer, crossDaemonRenderer } from "./cross-daemon-timeline";
-import { contributeClient } from "./cross-daemon-pill";
-import { CrossDaemonPanel } from "./cross-daemon-panel";
+import { MainSurface } from "./plugin/main.client";
+import { crossDaemonTransformer, crossDaemonRenderer } from "./plugin/cross-daemon-timeline";
+import { contributeClient } from "./plugin/cross-daemon-pill";
+import { CrossDaemonPanel } from "./plugin/cross-daemon-panel";
 import {
   handleRegistryRead,
   handleDaemonAdd,
@@ -10,21 +10,19 @@ import {
   handleDaemonRemove,
   handleDaemonHealth,
   handleServerStatus,
-  handleServerInstall,
-  handleServerUninstall,
   handleServerCheck,
+  handleServerLocate,
+  handleServerSetPath,
   handleConversationSend,
   handleIntrospectAgents,
   handleIntroduceAgents,
   handleDaemonProbe,
-  handleServerLocate,
-  handleServerSetPath,
   handleUiPrefsGet,
   handleUiPrefsSet,
   handleSnapshotRefresh,
   handleDaemonDump,
   handleIdentitySync,
-} from "./handlers.server";
+} from "./plugin/handlers.server";
 import {
   registryReadRpc,
   daemonAddRpc,
@@ -32,21 +30,19 @@ import {
   daemonRemoveRpc,
   daemonHealthRpc,
   serverStatusRpc,
-  serverInstallRpc,
-  serverUninstallRpc,
   serverCheckRpc,
+  serverLocateRpc,
+  serverSetPathRpc,
   conversationSendRpc,
   introspectAgentsRpc,
   introduceAgentsRpc,
   daemonProbeRpc,
-  serverLocateRpc,
-  serverSetPathRpc,
   uiPrefsGetRpc,
   uiPrefsSetRpc,
   snapshotRefreshRpc,
   daemonDumpRpc,
   identitySyncRpc,
-} from "./registry.shared";
+} from "./plugin/registry.shared";
 
 export default function contribute(plugin: PluginContext) {
   plugin.handle(registryReadRpc, handleRegistryRead);
@@ -55,15 +51,13 @@ export default function contribute(plugin: PluginContext) {
   plugin.handle(daemonRemoveRpc, handleDaemonRemove);
   plugin.handle(daemonHealthRpc, handleDaemonHealth);
   plugin.handle(serverStatusRpc, handleServerStatus);
-  plugin.handle(serverInstallRpc, handleServerInstall);
-  plugin.handle(serverUninstallRpc, handleServerUninstall);
   plugin.handle(serverCheckRpc, handleServerCheck);
-  plugin.handle(introspectAgentsRpc, handleIntrospectAgents);
-  plugin.handle(introduceAgentsRpc, handleIntroduceAgents);
-  plugin.handle(conversationSendRpc, handleConversationSend);
-  plugin.handle(daemonProbeRpc, handleDaemonProbe);
   plugin.handle(serverLocateRpc, handleServerLocate);
   plugin.handle(serverSetPathRpc, handleServerSetPath);
+  plugin.handle(conversationSendRpc, handleConversationSend);
+  plugin.handle(introspectAgentsRpc, handleIntrospectAgents);
+  plugin.handle(introduceAgentsRpc, handleIntroduceAgents);
+  plugin.handle(daemonProbeRpc, handleDaemonProbe);
   plugin.handle(uiPrefsGetRpc, handleUiPrefsGet);
   plugin.handle(uiPrefsSetRpc, handleUiPrefsSet);
   plugin.handle(snapshotRefreshRpc, handleSnapshotRefresh);

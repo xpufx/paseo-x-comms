@@ -18,8 +18,6 @@ import {
   serverCheckRpc,
   serverLocateRpc,
   serverSetPathRpc,
-  serverInstallRpc,
-  serverUninstallRpc,
   introspectAgentsRpc,
   introduceAgentsRpc,
 } from "./registry.shared";
@@ -53,8 +51,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
   const callCheck = useRpc(serverCheckRpc);
   const callLocate = useRpc(serverLocateRpc);
   const callSetPath = useRpc(serverSetPathRpc);
-  const callInstall = useRpc(serverInstallRpc);
-  const callUninstall = useRpc(serverUninstallRpc);
   const callIntrospect = useRpc(introspectAgentsRpc);
   const callIntroduce = useRpc(introduceAgentsRpc);
 
@@ -225,30 +221,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
     if (locate.data && serverPathDraft === "") setServerPathDraft(locate.data.path ?? locate.data.defaultPath);
     if (locate.data) void check.refetch();
   }, [locate.data, serverPathDraft]);
-  const install = useMutation({
-    mutationFn: () => callInstall({}),
-    onSuccess: (data) => {
-      void status.refetch();
-      void check.refetch();
-      setActionResult(
-        data.wroteFile
-          ? { ok: data.syntaxOk, text: `installed v${data.version} at ${data.installPath} (syntax ${data.syntaxOk ? "ok" : "failed"})` }
-          : { ok: false, text: `install failed: ${data.error ?? "unknown"}` },
-      );
-    },
-  });
-  const uninstall = useMutation({
-    mutationFn: () => callUninstall({}),
-    onSuccess: (data) => {
-      void status.refetch();
-      void check.refetch();
-      setActionResult(
-        data.removed
-          ? { ok: true, text: `uninstalled from ${data.installPath}` }
-          : { ok: false, text: data.error ?? "uninstall failed" },
-      );
-    },
-  });
   const add = useMutation({ mutationFn: callAdd });
   const update = useMutation({ mutationFn: callUpdate });
   const remove = useMutation({ mutationFn: callRemove });
@@ -464,13 +436,13 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       </Pressable>
       {!prereqsCollapsed ? (
         <>
-          <Text style={styles.section}>Step 1. Install the MCP server on this daemon</Text>
+          <Text style={styles.section}>MCP server (bundled)</Text>
           {locate.data ? (
             <Text style={styles.detail} selectable>
               {locate.data.path ? `server found${locate.data.configured ? " (configured)" : ""} at ${locate.data.path}` : "server not found"}
             </Text>
           ) : null}
-          <Text style={styles.label}>Server path</Text>
+          <Text style={styles.label}>Server path override</Text>
           <TextInput
             style={styles.input}
             value={serverPathDraft}
@@ -484,17 +456,9 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
               <Text style={styles.buttonTextSmall}>{setPath.isPending ? "Setting…" : "Use this path"}</Text>
             </Pressable>
           ) : null}
-          {install.error ? <Text style={styles.error}>{install.error.message}</Text> : null}
-          {actionResult ? (
-            actionResult.ok ? (
-              <Text style={styles.detail} selectable>{actionResult.text}</Text>
-            ) : (
-              <Text style={styles.error}>{actionResult.text}</Text>
-            )
-          ) : null}
           {locate.data?.path ? (
             <>
-              <Text style={styles.detail}>Detected an installed server; the tools should be available.</Text>
+              <Text style={styles.detail}>The server ships with the plugin; no separate install is needed.</Text>
               {check.data ? (
                 <Text style={[styles.detail, check.data.match ? styles.detailOk : styles.detailWarn]} selectable>
                   {check.data.error
@@ -504,20 +468,10 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
                       : `server reports v${check.data.version}, plugin expects v${check.data.expected}`}
                 </Text>
               ) : null}
-              {status.data?.configured ? (
-                <Pressable accessibilityRole="button" onPress={() => uninstall.mutate()} style={({ pressed }) => [styles.buttonDanger, pressed && styles.buttonPressed]} android_ripple={{ color: "rgba(255,0,0,0.15)" }}>
-                  <Text style={styles.buttonTextDanger}>{uninstall.isPending ? "Removing…" : "Uninstall server"}</Text>
-                </Pressable>
-              ) : null}
-              {uninstall.error ? <Text style={styles.error}>{uninstall.error.message}</Text> : null}
             </>
           ) : (
-            <Pressable accessibilityRole="button" onPress={() => install.mutate()} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]} android_ripple={{ color: "rgba(255,255,255,0.25)" }}>
-              <Text style={styles.buttonText}>{install.isPending ? "Installing…" : "Install server"}</Text>
-            </Pressable>
+            <Text style={styles.detail}>Server not located. Reinstall the plugin, or set an explicit path above.</Text>
           )}
-
-          <Text style={styles.section}>Step 2. Configure it in your clients</Text>
           <Text style={styles.detail}>
             To use the cross-daemon tools, register this server in each client you
             use (pi, opencode) and restart the client. Registration is a manual

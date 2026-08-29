@@ -1,4 +1,4 @@
-import { homedir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { getSnapshotFresh, agentCountFor, refreshSnapshot, initializeSnapshot } from "./snapshot.server";
@@ -8,8 +8,6 @@ import {
   daemonUpdateRpc,
   daemonRemoveRpc,
   daemonHealthRpc,
-  serverStatusRpc,
-  serverInstallRpc,
   serverCheckRpc,
 } from "./registry.shared";
 import {
@@ -20,8 +18,7 @@ import {
   readRegistry,
   mutateRegistry,
 } from "./registry.server";
-import { serverStatus, installServer, uninstallServer } from "./install.server";
-import { locateServer, USER_DEFAULT } from "./server-locate.server";
+import { locateServer, ensureServerDeps } from "./server-locate.server";
 
 // Startup check: validate whatever is already in the registry as soon as the
 // plugin backend loads, so a corrupt or invalid config is caught early and
@@ -156,29 +153,33 @@ export async function handleIntrospectAgents() {
 
 import { McpStdioClient } from "./mcp-client.server";
 
-// Sends go through the installed paseo-cross-daemon-comms server over stdio
-// MCP, so every message carries the meta envelope (sender identity) stamped
-// by the server itself. Each recipient gets the other party's address so a
-// real two-way reply is possible, not just two one-way drops.
-const INSTALLED_SERVER = join(homedir(), ".paseo", "tools", "paseo-cross-daemon-comms", "paseo-cross-daemon-comms.mjs");
-
-function installedServerPath(): string {
-  return INSTALLED_SERVER;
-}
-
-// Small helper to avoid shadowing the node:path import at module top.
+// Sends go through the bundled paseo-cross-daemon-comms server over stdio MCP,
+// so every message carries the meta envelope (sender identity) stamped by the
+// server itself. Each recipient gets the other party's address so a real
+// two-way reply is possible, not just two one-way drops.
 export async function handleIntroduceAgents(input: {
   first: { daemon: string; agentId: string; shortId: string; name: string };
   second: { daemon: string; agentId: string; shortId: string; name: string };
   message: string;
 }) {
-  const serverPath = installedServerPath();
-  const { existsSync: exists } = await import("node:fs");
-  if (!exists(serverPath)) {
+  const located = await locateServer(readServerPath());
+  if (!located.path) {
     return {
       sends: [
-        { daemon: input.first.daemon, agentId: input.first.agentId, ok: false, error: "MCP server is not installed; use the Install button first" },
-        { daemon: input.second.daemon, agentId: input.second.agentId, ok: false, error: "MCP server is not installed; use the Install button first" },
+        { daemon: input.first.daemon, agentId: input.first.agentId, ok: false, error: "MCP server not found; reinstall the plugin" },
+        { daemon: input.second.daemon, agentId: input.second.agentId, ok: false, error: "MCP server not found; reinstall the plugin" },
+      ],
+    };
+  }
+  const serverPath = located.path;
+  try {
+    await ensureServerDeps(serverPath);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    return {
+      sends: [
+        { daemon: input.first.daemon, agentId: input.first.agentId, ok: false, error: `server deps failed: ${detail}` },
+        { daemon: input.second.daemon, agentId: input.second.agentId, ok: false, error: `server deps failed: ${detail}` },
       ],
     };
   }
@@ -221,22 +222,15 @@ export async function handleIntroduceAgents(input: {
 
 export async function handleServerStatus() {
   const located = await locateServer(readServerPath());
-  const path = located.path ?? located.defaultPath;
-  const result = serverStatus(path);
-  return { ...result, configured: located.configured };
-}
-
-export async function handleServerInstall() {
-  const located = await locateServer(readServerPath());
-  const path = located.path ?? located.defaultPath;
-  const result = await installServer(path);
-  return { ...result, configured: located.configured };
-}
-
-export async function handleServerUninstall() {
-  const located = await locateServer(readServerPath());
-  const path = located.path ?? located.defaultPath;
-  return uninstallServer(path);
+  const version = located.path ? extractServerVersion(located.path) : null;
+  return {
+    installPath: located.path ?? located.defaultPath,
+    installed: located.path !== null,
+    configured: located.configured,
+    version,
+    syntaxOk: located.path !== null,
+    error: null,
+  };
 }
 
 // The server version this plugin is built against, bumped in lockstep with the
@@ -262,6 +256,18 @@ export async function handleServerCheck() {
       expected: expectedServerVersion(),
       match: false,
       error: null,
+    };
+  }
+  try {
+    await ensureServerDeps(located.path);
+  } catch (cause) {
+    return {
+      path: located.path,
+      located: true,
+      version: null,
+      expected: expectedServerVersion(),
+      match: false,
+      error: `server deps failed: ${cause instanceof Error ? cause.message : String(cause)}`,
     };
   }
   const client = new McpStdioClient(located.path);
@@ -293,10 +299,25 @@ export async function handleServerCheck() {
 
 // Sends a message to a specific agent on a daemon through the located server.
 // Reuses the same located-server path every other RPC uses.
+function extractServerVersion(serverPath: string): string | null {
+  try {
+    const source = readFileSync(serverPath, "utf8");
+    const match = source.match(/const VERSION = "([^"]+)"/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function handleConversationSend(input: { daemon: string; agentId: string; prompt: string }) {
   const located = await locateServer(readServerPath());
   if (!located.path) {
-    return { daemon: input.daemon, agentId: input.agentId, ok: false, error: "no server located" };
+    return { daemon: input.daemon, agentId: input.agentId, ok: false, error: "MCP server not found; reinstall the plugin" };
+  }
+  try {
+    await ensureServerDeps(located.path);
+  } catch (cause) {
+    return { daemon: input.daemon, agentId: input.agentId, ok: false, error: `server deps failed: ${cause instanceof Error ? cause.message : String(cause)}` };
   }
   const client = new McpStdioClient(located.path);
   try {

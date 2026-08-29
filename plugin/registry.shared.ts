@@ -78,16 +78,6 @@ export const daemonHealthRpc = defineRpc({
   }),
 });
 
-export const serverUninstallRpc = defineRpc({
-  name: "server.uninstall",
-  input: z.object({}),
-  output: z.object({
-    installPath: z.string(),
-    removed: z.boolean(),
-    error: z.string().nullable(),
-  }),
-});
-
 export const serverStatusRpc = defineRpc({
   name: "server.status",
   input: z.object({}),
@@ -97,18 +87,6 @@ export const serverStatusRpc = defineRpc({
     configured: z.boolean(),
     version: z.string().nullable(),
     syntaxOk: z.boolean(),
-    error: z.string().nullable(),
-  }),
-});
-
-export const serverInstallRpc = defineRpc({
-  name: "server.install",
-  input: z.object({}),
-  output: z.object({
-    installPath: z.string(),
-    wroteFile: z.boolean(),
-    syntaxOk: z.boolean(),
-    version: z.string().nullable(),
     error: z.string().nullable(),
   }),
 });

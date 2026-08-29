@@ -15,7 +15,13 @@
     "allowSyntheticDefaultImports": true
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx"
+    "*.ts",
+    "*.tsx",
+    "plugin/**/*.ts",
+    "plugin/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "mcp"
   ]
 }
