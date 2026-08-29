@@ -35,7 +35,7 @@ export async function deriveConversations(
     const parsed = parseEnvelope(text);
     if (!parsed) continue;
     const env: CrossDaemonEnvelope = parsed.envelope;
-    const meta = env.paseoCrossDaemonComms;
+    const meta = env.xComms;
     // The envelope carries the peer's serverId; the registry (and therefore the
     // send tool) is keyed by daemon *name*. We key the conversation by serverId
     // here and let the server-side send handler resolve serverId -> name, so the

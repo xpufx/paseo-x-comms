@@ -163,7 +163,7 @@ async function gatherSenderMeta(signal) {
 async function senderMetaBlock(signal, target = {}, sender = {}) {
   const m = await gatherSenderMeta(signal);
   const envelope = {
-    paseoCrossDaemonComms: {
+    xComms: {
       version: 2,
       sender: {
         agentId: sender.agentId ?? m.agentId,
@@ -179,7 +179,7 @@ async function senderMetaBlock(signal, target = {}, sender = {}) {
       sentAt: new Date().toISOString(),
     },
   };
-  return `[paseo-cross-daemon-comms meta v2] ${JSON.stringify(envelope)}`;
+  return `[x-comms] ${JSON.stringify(envelope)}`;
 }
 
 // tools
@@ -233,7 +233,7 @@ Tool names are x_comms_* (for example x_comms_list_agents). A client that loads 
 Capabilities: discover agents on other paseo daemons (list_agents, inspect), message them (send), read their timeline (logs), wait for them (wait), and resolve their permission prompts (list_permissions, allow_permission, deny_permission).
 
 Behavior:
-- send stamps every message with an envelope: [paseo-cross-daemon-comms meta v2] <json> (sender identity, target, sentAt). A message carrying it is from another daemon's agent, not a user: reply to the sender via x_comms_send; on finish, error, or permission need, notify the sender the same way (include permission details when blocked).
+- send stamps every message with an envelope: [x-comms] <json> (sender identity, target, sentAt). A message carrying it is from another daemon's agent, not a user: reply to the sender via x_comms_send; on finish, error, or permission need, notify the sender the same way (include permission details when blocked).
 - send preempts a busy agent. If the target may be busy, use wait first.
 - Permission prompts: list_permissions to see them, allow_permission/deny_permission to respond.`;
 

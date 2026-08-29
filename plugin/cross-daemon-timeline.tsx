@@ -3,10 +3,10 @@ import { Icon, type PluginTimelineItemProps, type PluginTimelineTransformerContr
 import { useMemo } from "react";
 import { Text, View } from "react-native";
 
-const META_PREFIX = "[paseo-cross-daemon-comms meta v2] ";
+const META_PREFIX = "[x-comms] ";
 
 const EnvelopeSchema = z.object({
-  paseoCrossDaemonComms: z.object({
+  xComms: z.object({
     version: z.number(),
     sender: z.object({
       agentId: z.string().nullable(),
@@ -50,7 +50,7 @@ const ItemSchema = z.object({
 });
 
 function senderLabel(env: CrossDaemonEnvelope): string {
-  const s = env.paseoCrossDaemonComms.sender;
+  const s = env.xComms.sender;
   const name = s.agentName ?? s.agentId ?? "unknown agent";
   const daemon = s.daemonServerId ?? s.host ?? "remote";
   return `${name} @ ${daemon}`;
