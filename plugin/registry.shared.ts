@@ -238,6 +238,25 @@ export const serverLocateRpc = defineRpc({
   }),
 });
 
+export const agentPromptGetRpc = defineRpc({
+  name: "agentPrompt.get",
+  input: z.object({}),
+  output: z.object({
+    appendSystemPrompt: z.string(),
+    hasBlock: z.boolean(),
+  }),
+});
+
+export const agentPromptSetRpc = defineRpc({
+  name: "agentPrompt.set",
+  input: z.object({ enabled: z.boolean() }),
+  output: z.object({
+    appendSystemPrompt: z.string(),
+    hasBlock: z.boolean(),
+    error: z.string().nullable(),
+  }),
+});
+
 export const serverCheckRpc = defineRpc({
   name: "server.check",
   input: z.object({}),

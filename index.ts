@@ -13,6 +13,8 @@ import {
   handleServerCheck,
   handleServerLocate,
   handleServerSetPath,
+  handleAgentPromptGet,
+  handleAgentPromptSet,
   handleConversationSend,
   handleIntrospectAgents,
   handleIntroduceAgents,
@@ -33,6 +35,8 @@ import {
   serverCheckRpc,
   serverLocateRpc,
   serverSetPathRpc,
+  agentPromptGetRpc,
+  agentPromptSetRpc,
   conversationSendRpc,
   introspectAgentsRpc,
   introduceAgentsRpc,
@@ -54,6 +58,8 @@ export default function contribute(plugin: PluginContext) {
   plugin.handle(serverCheckRpc, handleServerCheck);
   plugin.handle(serverLocateRpc, handleServerLocate);
   plugin.handle(serverSetPathRpc, handleServerSetPath);
+  plugin.handle(agentPromptGetRpc, handleAgentPromptGet);
+  plugin.handle(agentPromptSetRpc, handleAgentPromptSet);
   plugin.handle(conversationSendRpc, handleConversationSend);
   plugin.handle(introspectAgentsRpc, handleIntrospectAgents);
   plugin.handle(introduceAgentsRpc, handleIntroduceAgents);

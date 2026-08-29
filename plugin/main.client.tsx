@@ -21,6 +21,8 @@ import {
   serverSetPathRpc,
   introspectAgentsRpc,
   introduceAgentsRpc,
+  agentPromptGetRpc,
+  agentPromptSetRpc,
 } from "./registry.shared";
 
 const HOST_FORM_HINT =
@@ -54,6 +56,8 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
   const callSetPath = useRpc(serverSetPathRpc);
   const callIntrospect = useRpc(introspectAgentsRpc);
   const callIntroduce = useRpc(introduceAgentsRpc);
+  const callAgentPromptGet = useRpc(agentPromptGetRpc);
+  const callAgentPromptSet = useRpc(agentPromptSetRpc);
 
   const [newName, setNewName] = useState("");
   const [newValue, setNewValue] = useState("");
@@ -64,6 +68,19 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
   const [dumpState, setDumpState] = useState<Record<string, unknown> | null>(null);
   const [dumpDaemon, setDumpDaemon] = useState<string | null>(null);
   const [dumpOpen, setDumpOpen] = useState(false);
+
+  // Agent-prompt (system prompt) block: surface the daemon's appendSystemPrompt
+  // and toggle our marked cross-daemon block. Optional: the tool works without
+  // it via the raw meta envelope; the block makes agents aware of cross-daemon
+  // comms in their system prompt.
+  const agentPrompt = useQuery({
+    queryKey: ["agent-prompt"],
+    queryFn: () => callAgentPromptGet({}),
+  });
+  const agentPromptSet = useMutation({
+    mutationFn: (enabled: boolean) => callAgentPromptSet({ enabled }),
+    onSuccess: () => agentPrompt.refetch(),
+  });
 
   // Introduce: which picker (1 or 2) is expanded, selections, editable message.
   const [expandedPicker, setExpandedPicker] = useState<1 | 2 | null>(null);
@@ -467,7 +484,49 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       ) : null}
 
       <View style={styles.sectionRow}>
-        <Text style={styles.section}>Registered daemons</Text>
+        <View style={styles.sectionRow}>
+        <Text style={styles.section}>Agent prompt</Text>
+      </View>
+      <View style={{ paddingHorizontal: 16, gap: 8 }}>
+        {agentPrompt.isLoading ? (
+          <Text style={styles.detail}>Reading daemon system prompt…</Text>
+        ) : agentPrompt.error ? (
+          <Text style={[styles.detail, styles.detailWarn]} selectable>{String(agentPrompt.error.message ?? agentPrompt.error)}</Text>
+        ) : (
+          <>
+            <Text style={styles.detail} selectable>
+              {agentPrompt.data?.hasBlock
+                ? "Cross-daemon block is present in this daemon's agent prompt."
+                : "Cross-daemon block is NOT present in this daemon's agent prompt."}
+            </Text>
+            <View style={{ maxHeight: 160, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 6, padding: 8 }}>
+              <ScrollView>
+                <Text style={styles.mono} selectable>
+                  {agentPrompt.data?.appendSystemPrompt || "(empty)"}
+                </Text>
+              </ScrollView>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => agentPromptSet.mutate(!agentPrompt.data?.hasBlock)}
+              style={styles.buttonSmall}
+            >
+              <Text style={styles.buttonTextSmall}>
+                {agentPromptSet.isPending
+                  ? "Applying…"
+                  : agentPrompt.data?.hasBlock
+                    ? "Remove cross-daemon block"
+                    : "Add cross-daemon block"}
+              </Text>
+            </Pressable>
+            {agentPromptSet.isError ? (
+              <Text style={[styles.detail, styles.detailWarn]} selectable>{String(agentPromptSet.error.message ?? agentPromptSet.error)}</Text>
+            ) : null}
+          </>
+        )}
+      </View>
+
+      <Text style={styles.section}>Registered daemons</Text>
         <Text style={styles.detail}>(Config</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Copy registry path" onPress={handleCopyPath} hitSlop={10}>
           <Text style={styles.copyIcon}>⧉</Text>

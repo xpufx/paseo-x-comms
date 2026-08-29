@@ -9,6 +9,8 @@ import {
   daemonRemoveRpc,
   daemonHealthRpc,
   serverCheckRpc,
+  agentPromptGetRpc,
+  agentPromptSetRpc,
 } from "./registry.shared";
 import {
   parseRegistry,
@@ -55,6 +57,100 @@ initializeSnapshot();
 export function hostnameFor(daemon: string): string | null {
   const hostnames = readUiPrefs().daemonHostnames ?? {};
   return hostnames[daemon] ?? null;
+}
+
+const LOCAL_DIRECT = "local-direct";
+// Marker delimiting the block we append to the daemon's appendSystemPrompt.
+// Strip only removes our marked block so user-authored prompt text is preserved.
+const PROMPT_BLOCK_START = "<!-- paseo-cross-daemon-comms-system-prompt -->";
+const PROMPT_BLOCK_END = "<!-- /paseo-cross-daemon-comms-system-prompt -->";
+
+function buildPromptBlock(daemons: Array<{ name: string; serverId: string | null }>): string {
+  const lines = daemons
+    .map((d) => `- ${d.name}${d.serverId ? ` (serverId ${d.serverId})` : "" }`)
+    .join("\n");
+  return `${PROMPT_BLOCK_START}
+You can communicate with agents on other paseo daemons via the paseo-cross-daemon-comms plugin (installed on this daemon). It is not a native tool: to act, open the Cross-daemon panel or pill, or state your intent and ask the user to route it. A message carrying the envelope [paseo-cross-daemon-comms meta v2] is from another daemon's agent, not a user: reply to the sender via the panel. Reachable daemons:
+${lines}
+${PROMPT_BLOCK_END}`;
+}
+
+function stripPromptBlock(prompt: string): string {
+  const re = new RegExp(
+    `${PROMPT_BLOCK_START}[\\s\\S]*?${PROMPT_BLOCK_END}\\n?`,
+    "g",
+  );
+  return prompt.replace(re, "").trim();
+}
+
+function hasPromptBlock(prompt: string): boolean {
+  return prompt.includes(PROMPT_BLOCK_START);
+}
+
+async function withLocalDaemon<T>(
+  fn: (client: any) => Promise<T>,
+): Promise<T> {
+  const entry = readRegistry(currentRegistryPath()).daemons.find(
+    (d) => d.name === LOCAL_DIRECT,
+  );
+  if (!entry) {
+    throw new Error(
+      `no '${LOCAL_DIRECT}' entry in the registry; add your local daemon's direct host (host:port) as '${LOCAL_DIRECT}' so the plugin can manage its system prompt`,
+    );
+  }
+  const { DaemonClient } = await import("@getpaseo/client/internal/daemon-client");
+  const { url, e2ee } = peerUrl(entry.value);
+  const client = new DaemonClient({
+    url,
+    clientId: "paseo-cross-daemon-comms-prompt-" + Date.now(),
+    clientType: "cli",
+    e2ee,
+    connectTimeoutMs: 15000,
+  });
+  try {
+    await client.connect();
+    return await fn(client);
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
+export async function handleAgentPromptGet() {
+  const prompt = await withLocalDaemon(async (client) => {
+    const res = await client.getDaemonConfig("agent-prompt-get");
+    return (res?.config?.appendSystemPrompt as string) ?? "";
+  });
+  return { appendSystemPrompt: prompt, hasBlock: hasPromptBlock(prompt) };
+}
+
+export async function handleAgentPromptSet(input: { enabled: boolean }) {
+  try {
+    const result = await withLocalDaemon(async (client) => {
+      const current = ((await client.getDaemonConfig("agent-prompt-set-read"))?.config?.appendSystemPrompt as string) ?? "";
+      let next: string;
+      if (input.enabled) {
+        if (hasPromptBlock(current)) {
+          next = current; // already present; leave as-is
+        } else {
+          const daemons = readRegistry(currentRegistryPath()).daemons
+            .filter((d) => d.name !== LOCAL_DIRECT)
+            .map((d) => ({ name: d.name, serverId: (d as any).serverId ?? null }));
+          next = current + "\n\n" + buildPromptBlock(daemons);
+        }
+      } else {
+        next = stripPromptBlock(current);
+      }
+      await client.patchDaemonConfig({ appendSystemPrompt: next });
+      return { appendSystemPrompt: next, hasBlock: hasPromptBlock(next) };
+    });
+    return { ...result, error: null };
+  } catch (cause) {
+    return {
+      appendSystemPrompt: "",
+      hasBlock: false,
+      error: cause instanceof Error ? cause.message : String(cause),
+    };
+  }
 }
 
 export async function handleRegistryRead() {
