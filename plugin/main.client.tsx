@@ -63,6 +63,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
   const [refreshedAt, setRefreshedAt] = useState<string | null>(null);
   const [dumpState, setDumpState] = useState<Record<string, unknown> | null>(null);
   const [dumpDaemon, setDumpDaemon] = useState<string | null>(null);
+  const [dumpOpen, setDumpOpen] = useState(false);
 
   // Introduce: which picker (1 or 2) is expanded, selections, editable message.
   const [expandedPicker, setExpandedPicker] = useState<1 | 2 | null>(null);
@@ -563,7 +564,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`Debug daemon ${daemon.name}`}
-                      onPress={() => { setDumpDaemon(daemon.name); dump.mutate({ daemon: daemon.name }); }}
+                      onPress={() => { setDumpOpen(true); setDumpDaemon(daemon.name); dump.mutate({ daemon: daemon.name }); }}
                       hitSlop={10}
                     >
                       <Text style={styles.copyIcon}>{dumpDaemon === daemon.name && dump.isPending ? "…" : "🐞"}</Text>
@@ -621,13 +622,14 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
 
       <Modal
         title={`Debug: ${dumpDaemon ?? ""}`}
-        open={dumpState !== null}
-        onOpenChange={(open) => { if (!open) setDumpState(null); }}
+        open={dumpOpen}
+        onOpenChange={(open) => { if (!open) { setDumpOpen(false); setDumpState(null); } }}
       >
         <Modal.Content>
-          <ScrollView style={styles.pickerScroll}>
-            <View style={styles.cardRow}>
-          {(() => {
+          <View style={styles.cardRow}>
+          {dump.isPending && !dumpState ? (
+            <Text style={styles.detail}>Loading…</Text>
+          ) : (() => {
             const d = dumpState as any;
             if (!d) return null;
             return (
@@ -691,7 +693,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
             );
           })()}
             </View>
-          </ScrollView>
         </Modal.Content>
       </Modal>
 
