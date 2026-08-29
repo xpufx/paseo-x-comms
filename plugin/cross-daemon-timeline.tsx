@@ -32,12 +32,16 @@ export type CrossDaemonEnvelope = z.infer<typeof EnvelopeSchema>;
  */
 export function parseEnvelope(text: string): { envelope: CrossDaemonEnvelope; body: string } | null {
   if (!text.startsWith(META_PREFIX)) return null;
-  const json = text.slice(META_PREFIX.length).trimStart();
+  const rest = text.slice(META_PREFIX.length).trimStart();
+  // The server stamps `<prefix> <json>\n\n<body>`: the envelope JSON is
+  // single-line, then a blank line separates it from the human-visible text.
+  // Split on the first blank line so JSON.parse only sees the envelope.
+  const sep = rest.indexOf("\n\n");
+  const json = sep === -1 ? rest : rest.slice(0, sep);
+  const body = sep === -1 ? "" : rest.slice(sep + 2).trim();
   const parsed = EnvelopeSchema.safeParse(JSON.parse(json));
   if (!parsed.success) return null;
-  // The envelope is a prefix; anything after the JSON is the human-visible text.
-  const after = text.slice(META_PREFIX.length + json.length).trim();
-  return { envelope: parsed.data, body: after };
+  return { envelope: parsed.data, body };
 }
 
 const ItemSchema = z.object({
