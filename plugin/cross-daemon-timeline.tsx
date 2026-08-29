@@ -8,6 +8,7 @@ const META_PREFIX = "[x-comms] ";
 const EnvelopeSchema = z.object({
   xComms: z.object({
     version: z.number(),
+    type: z.string(),
     sender: z.object({
       agentId: z.string().nullable(),
       agentName: z.string().nullable(),

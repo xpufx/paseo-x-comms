@@ -218,7 +218,8 @@ test("send stamps a structured sender-meta envelope and reaches the remote agent
     assert.equal(sent.sawNoWait, true, "send must dispatch fire-and-forget (--no-wait)");
     assert.equal(sent.promptHead.split("\n\n")[1], "hello there", "prompt must stay prose");
     const meta = metaOf(sent.promptHead);
-    assert.equal(meta.xComms.version, 2);
+    assert.equal(meta.xComms.version, 3);
+    assert.equal(meta.xComms.type, "x-comms.incoming_message");
     assert.equal(meta.xComms.sender.agentId, "agent-test-1");
     assert.equal(meta.xComms.sender.agentName, "fake-agent");
     assert.equal(meta.xComms.sender.host, "fakehost");
