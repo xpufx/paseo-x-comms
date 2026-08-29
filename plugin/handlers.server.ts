@@ -322,10 +322,14 @@ export async function handleConversationSend(input: { daemon: string; agentId: s
     return { daemon: input.daemon, agentId: input.agentId, ok: false, error: `server deps failed: ${cause instanceof Error ? cause.message : String(cause)}` };
   }
   const client = new McpStdioClient(located.path);
+  // The conversation list keys conversations off the peer's serverId (from the
+  // envelope), but the send tool resolves daemons by registered *name*. Map the
+  // serverId back to the registered name when we have an identity mapping.
+  const sendDaemon = daemonNameForServerId(input.daemon) ?? input.daemon;
   try {
     await client.connect();
     await client.callTool("paseo_cross_daemon_comms_send", {
-      daemon: input.daemon,
+      daemon: sendDaemon,
       agentId: input.agentId,
       prompt: input.prompt,
       fromAgentId: input.fromAgentId ?? null,

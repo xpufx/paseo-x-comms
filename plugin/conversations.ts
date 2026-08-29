@@ -1,6 +1,5 @@
 import { usePaseo } from "@getpaseo/plugin";
 import { parseEnvelope, type CrossDaemonEnvelope } from "./cross-daemon-timeline";
-import { daemonNameForServerId } from "./handlers.server";
 
 type PaseoApi = ReturnType<typeof usePaseo>;
 
@@ -37,12 +36,12 @@ export async function deriveConversations(
     if (!parsed) continue;
     const env: CrossDaemonEnvelope = parsed.envelope;
     const meta = env.paseoCrossDaemonComms;
-    // The registry (and therefore the send tool) is keyed by daemon *name*, but
-    // the envelope carries the peer's serverId. Resolve the name so replies route
-    // correctly; fall back to the serverId only if identity sync hasn't mapped it.
-    const daemonName =
-      daemonNameForServerId(meta.sender.daemonServerId) ?? meta.sender.daemonServerId ?? meta.sender.host ?? null;
-    const id = `${daemonName ?? "?"}/${meta.sender.agentId ?? "?"}`;
+    // The envelope carries the peer's serverId; the registry (and therefore the
+    // send tool) is keyed by daemon *name*. We key the conversation by serverId
+    // here and let the server-side send handler resolve serverId -> name, so the
+    // client bundle never touches the server-only identity store.
+    const daemon = meta.sender.daemonServerId ?? meta.sender.host ?? null;
+    const id = `${daemon ?? "?"}/${meta.sender.agentId ?? "?"}`;
     const existing = byConversation.get(id);
     if (existing) {
       existing.messageCount += 1;
@@ -51,7 +50,7 @@ export async function deriveConversations(
       byConversation.set(id, {
         conversationId: id,
         counterparty: {
-          daemon: daemonName,
+          daemon,
           agentId: meta.sender.agentId ?? null,
           agentName: meta.sender.agentName ?? null,
           daemonServerId: meta.sender.daemonServerId ?? null,

@@ -27,7 +27,7 @@ export function CrossDaemonConversation({
   const send = useMutation({
     mutationFn: () =>
       callSend({
-        daemon: target?.counterparty.daemon ?? target?.counterparty.daemonServerId ?? "",
+        daemon: target?.counterparty.daemonServerId ?? target?.counterparty.daemon ?? "",
         agentId: target?.counterparty.agentId ?? "",
         prompt: draft,
         fromAgentId: agentId,
