@@ -1,7 +1,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { type PluginSurfaceProps, useRpc } from "@getpaseo/plugin";
 import React, { useCallback, useMemo, useState } from "react";
-import { Alert, Clipboard, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Clipboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Modal } from "@getpaseo/plugin/react-native";
 import {
   registryReadRpc,
   daemonAddRpc,
@@ -130,12 +131,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       pickerRadioSelected: { color: theme.colors.accent, fontSize: 16, width: 18 },
       pickerAgentText: { color: theme.colors.foreground, fontSize: 13, flexShrink: 1 },
       pickerScroll: { maxHeight: 420 },
-      pickerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center" as const, padding: 20 },
-      pickerSheet: { backgroundColor: theme.colors.surface0, borderRadius: 12, padding: 16, maxHeight: "80%" as const },
-      pickerSheetHeader: { flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "space-between" as const, marginBottom: 8 },
-      pickerSheetTitle: { color: theme.colors.foreground, fontSize: 16, fontWeight: "600" as const },
-      pickerCloseBtn: { minWidth: 44, minHeight: 44, justifyContent: "center" as const, alignItems: "center" as const },
-      pickerCloseText: { color: theme.colors.foregroundMuted, fontSize: 18 },
       backdrop: {
         position: "absolute" as const,
         left: 0, right: 0, top: 0, bottom: 0,
@@ -625,21 +620,13 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       })}
 
       <Modal
-        visible={dumpState !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDumpState(null)}
+        title={`Debug: ${dumpDaemon ?? ""}`}
+        open={dumpState !== null}
+        onOpenChange={(open) => { if (!open) setDumpState(null); }}
       >
-        <View style={styles.pickerBackdrop}>
-          <View style={styles.pickerSheet}>
-            <View style={styles.pickerSheetHeader}>
-              <Text style={styles.pickerSheetTitle}>Debug: {dumpDaemon ?? ""}</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Close debug" onPress={() => setDumpState(null)} style={styles.pickerCloseBtn}>
-                <Text style={styles.pickerCloseText}>✕</Text>
-              </Pressable>
-            </View>
-            <ScrollView style={styles.pickerScroll}>
-              <View style={styles.cardRow}>
+        <Modal.Content>
+          <ScrollView style={styles.pickerScroll}>
+            <View style={styles.cardRow}>
           {(() => {
             const d = dumpState as any;
             if (!d) return null;
@@ -703,10 +690,9 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
               </>
             );
           })()}
-              </View>
-              </ScrollView>
-          </View>
-        </View>
+            </View>
+          </ScrollView>
+        </Modal.Content>
       </Modal>
 
       <Text style={styles.section}>Add daemon</Text>
@@ -779,19 +765,11 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
               </Text>
             </Pressable>
             <Modal
-              visible={expandedPicker === slot}
-              transparent
-              animationType="fade"
-              onRequestClose={() => setExpandedPicker(null)}
+              title={`Select agent ${slot}`}
+              open={expandedPicker === slot}
+              onOpenChange={(open) => { if (!open) setExpandedPicker(null); }}
             >
-              <View style={styles.pickerBackdrop}>
-                <View style={styles.pickerSheet}>
-                  <View style={styles.pickerSheetHeader}>
-                    <Text style={styles.pickerSheetTitle}>Select agent {slot}</Text>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Close picker" onPress={() => setExpandedPicker(null)} style={styles.pickerCloseBtn}>
-                      <Text style={styles.pickerCloseText}>✕</Text>
-                    </Pressable>
-                  </View>
+              <Modal.Content>
                   {introspect.isPending ? <Text style={styles.pickerRowText}>Loading agents…</Text> : null}
                   {introspect.error ? <Text style={styles.error}>{introspect.error.message}</Text> : null}
                   <ScrollView style={styles.pickerScroll}>
@@ -832,8 +810,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
                       </View>
                     ))}
                   </ScrollView>
-                </View>
-              </View>
+              </Modal.Content>
             </Modal>
           </View>
         );
