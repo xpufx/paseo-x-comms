@@ -135,7 +135,7 @@ export async function handleAgentPromptSet(input: { enabled: boolean }) {
           const daemons = readRegistry(currentRegistryPath()).daemons
             .filter((d) => d.name !== LOCAL_DIRECT)
             .map((d) => ({ name: d.name, serverId: (d as any).serverId ?? null }));
-          next = current + "\n\n" + buildPromptBlock(daemons);
+          next = (current.trim().length > 0 ? current + "\n\n" : "") + buildPromptBlock(daemons);
         }
       } else {
         next = stripPromptBlock(current);
