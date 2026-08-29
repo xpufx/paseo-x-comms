@@ -1,4 +1,5 @@
-node_modules/
-*.tgz
+# Generated snapshot of the server source; imported by install.server.ts.
 embedded-server.source.ts
+
+# Local scratch files
 .scratch-*

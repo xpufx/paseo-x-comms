@@ -1,5 +1,6 @@
-# Dependencies
+# Dependencies (recursive: covers mcp/ and plugin/)
 node_modules/
 
-# Local daemon registry (live pairing offers — never commit)
-paseo-cross-daemon-comms.json
+# Local operational docs — kept on disk, never committed
+AGENTS.md
+HANDOVER.md
