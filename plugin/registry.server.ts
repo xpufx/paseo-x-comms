@@ -19,6 +19,19 @@ export function migrateFromRoot(oldName: string, newPath: string): void {
   renameSync(oldPath, newPath);
 }
 
+// One-time migration: the rename paseo-cross-daemon-comms -> paseo-x-comms moved
+// the whole namespaced state subdir. Copy its contents (registry, snapshot, UI
+// prefs) into the new subdir. Forward-only; a present new registry is a no-op.
+export function migrateFromDir(oldDirName: string): void {
+  const oldDir = join(homedir(), ".paseo", oldDirName);
+  if (!existsSync(oldDir) || existsSync(REGISTRY_DEFAULT)) return;
+  mkdirSync(stateDir(), { recursive: true });
+  for (const f of ["registry.json", "snapshot.json", "plugin.json"]) {
+    const src = join(oldDir, f);
+    if (existsSync(src)) renameSync(src, join(stateDir(), f));
+  }
+}
+
 /** The plausible canonical forms paseo classifies as --host targets. */
 export function validateDaemonHost(value: string): { valid: boolean; error: string | null } {
   const v = value.trim();
@@ -86,7 +99,7 @@ export function parseRegistry(content: string): {
 export function currentRegistryPath(): string {
   const env = process.env.PASEO_CROSS_DAEMON_COMMS_REMOTES;
   if (env && env.length > 0) return env;
-  migrateFromRoot("paseo-x-comms.json", REGISTRY_DEFAULT);
+  migrateFromDir("paseo-cross-daemon-comms");
   return REGISTRY_DEFAULT;
 }
 
