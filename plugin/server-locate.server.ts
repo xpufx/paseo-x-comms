@@ -88,15 +88,21 @@ function repoRootFor(serverPath: string): string {
 
 function depsPresent(serverPath: string): boolean {
   const root = repoRootFor(serverPath);
-  return SERVER_DEPS.every((dep) => existsSync(join(root, "node_modules", dep)));
+  return existsSync(join(root, "package.json")) &&
+    SERVER_DEPS.every((dep) => existsSync(join(root, "node_modules", dep)));
 }
 
 let ensurePromise: Promise<void> | null = null;
 
 export function ensureServerDeps(serverPath: string): Promise<void> {
+  const root = repoRootFor(serverPath);
+  if (!existsSync(join(root, "package.json"))) {
+    return Promise.reject(
+      new Error(`no package.json at ${root}; install the plugin from a checkout that contains one`),
+    );
+  }
   if (depsPresent(serverPath)) return Promise.resolve();
   if (ensurePromise) return ensurePromise;
-  const root = repoRootFor(serverPath);
   ensurePromise = new Promise<void>((resolve, reject) => {
     execFile("npm", ["install", "--no-audit", "--no-fund", "--omit=dev"], { cwd: root, timeout: 180_000, maxBuffer: 4 * 1024 * 1024 }, (error, _stdout, stderr) => {
       ensurePromise = null;
