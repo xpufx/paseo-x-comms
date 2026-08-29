@@ -1,0 +1,19 @@
+{
+  "name": "paseo-cross-daemon-comms-plugin",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@getpaseo/client": "0.7.0-beta.2",
+    "@getpaseo/plugin": "0.7.0-beta.2",
+    "@getpaseo/protocol": "0.7.0-beta.2",
+    "@tanstack/react-query": "^5.90.11",
+    "@types/react": "~19.2.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "typescript": "^5.9.3",
+    "zod": "^4.4.3"
+  }
+}

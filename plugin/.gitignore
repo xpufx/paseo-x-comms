@@ -1,0 +1,4 @@
+node_modules/
+*.tgz
+embedded-server.source.ts
+.scratch-*

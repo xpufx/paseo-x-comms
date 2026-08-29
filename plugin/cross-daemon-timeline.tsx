@@ -1,0 +1,101 @@
+import { z } from "zod";
+import { Icon, type PluginTimelineItemProps, type PluginTimelineTransformerContribution, type PluginTimelineRendererContribution } from "@getpaseo/plugin";
+import { useMemo } from "react";
+import { Text, View } from "react-native";
+
+const META_PREFIX = "[paseo-cross-daemon-comms meta v2] ";
+
+const EnvelopeSchema = z.object({
+  paseoCrossDaemonComms: z.object({
+    version: z.number(),
+    sender: z.object({
+      agentId: z.string().nullable(),
+      agentName: z.string().nullable(),
+      host: z.string().nullable(),
+      daemonServerId: z.string().nullable(),
+      cwd: z.string().nullable(),
+    }),
+    target: z.object({
+      daemon: z.string().nullable(),
+      agentId: z.string().nullable(),
+    }),
+    sentAt: z.string(),
+  }),
+});
+
+export type CrossDaemonEnvelope = z.infer<typeof EnvelopeSchema>;
+
+/**
+ * Splits a message body into its cross-daemon envelope (if present) and the
+ * remaining human-visible text. The envelope is a prefix our server stamps on
+ * every cross-daemon message; its mere presence is the signal we render on.
+ */
+export function parseEnvelope(text: string): { envelope: CrossDaemonEnvelope; body: string } | null {
+  if (!text.startsWith(META_PREFIX)) return null;
+  const json = text.slice(META_PREFIX.length).trimStart();
+  const parsed = EnvelopeSchema.safeParse(JSON.parse(json));
+  if (!parsed.success) return null;
+  // The envelope is a prefix; anything after the JSON is the human-visible text.
+  const after = text.slice(META_PREFIX.length + json.length).trim();
+  return { envelope: parsed.data, body: after };
+}
+
+const ItemSchema = z.object({
+  envelope: EnvelopeSchema,
+  body: z.string(),
+});
+
+function senderLabel(env: CrossDaemonEnvelope): string {
+  const s = env.paseoCrossDaemonComms.sender;
+  const name = s.agentName ?? s.agentId ?? "unknown agent";
+  const daemon = s.daemonServerId ?? s.host ?? "remote";
+  return `${name} @ ${daemon}`;
+}
+
+function CrossDaemonMessage({ theme, item }: PluginTimelineItemProps<z.infer<typeof ItemSchema>>) {
+  const label = useMemo(() => senderLabel(item.data.envelope), [item.data.envelope]);
+  return (
+    <View style={{ paddingVertical: 4 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+        <Icon name="PhoneOutgoing" size={14} color={theme.colors.accent} />
+        <Text style={{ color: theme.colors.accent, fontSize: 12, fontWeight: "600" as const }}>
+          cross-daemon · {label}
+        </Text>
+      </View>
+      {item.data.body.length > 0 ? (
+        <Text style={{ color: theme.colors.foreground, fontSize: 13 }}>{item.data.body}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * Timeline transformer: paseo calls this for every user_message. If the text
+ * carries our meta envelope, we emit a plugin-typed item our renderer draws
+ * distinctly. The envelope is the only discriminator.
+ */
+export const crossDaemonTransformer: PluginTimelineTransformerContribution<"user_message"> = {
+  id: "cross-daemon-message",
+  query: { itemType: "user_message" },
+  transform({ item }) {
+    const parsed = parseEnvelope(item.text);
+    if (!parsed) return undefined;
+    return {
+      items: [
+        {
+          type: "plugin",
+          kind: "cross-daemon-message",
+          version: 1,
+          data: { envelope: parsed.envelope, body: parsed.body },
+        },
+      ],
+    };
+  },
+};
+
+export const crossDaemonRenderer: PluginTimelineRendererContribution<typeof ItemSchema> = {
+  kind: "cross-daemon-message",
+  version: 1,
+  schema: ItemSchema,
+  Component: CrossDaemonMessage,
+};

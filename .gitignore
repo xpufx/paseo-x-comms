@@ -1,6 +1,5 @@
-HANDOVER.md
-cross-remotes.json
-paseo-cross-daemon-comms.json
-AGENTS.md
+# Dependencies
 node_modules/
-*.tgz
+
+# Local daemon registry (live pairing offers — never commit)
+paseo-cross-daemon-comms.json
