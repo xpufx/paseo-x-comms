@@ -1,4 +1,4 @@
-# paseo-cross-daemon-comms
+# paseo-x-comms
 
 > This repo closely follows the latest beta versions of paseo in order to benefit
 > from new features in the plugin system. Expect breaking changes between
@@ -7,14 +7,14 @@
 [paseo](https://paseo.sh) is an agent orchestrator: AI coding agents run on
 paseo daemons, each managing its own workspaces, tools, and permissions.
 
-paseo-cross-daemon-comms is an MCP server that lets agents on one paseo daemon
+paseo-x-comms is an MCP server that lets agents on one paseo daemon
 (remote or local) talk to agents on another paseo daemon, even across hosts,
 through the daemon's relay (WebSocket + E2EE) or directly over TCP.
 
 ## How it works
 
 ```
-pi / opencode --MCP stdio--> paseo-cross-daemon-comms (our server)
+pi / opencode --MCP stdio--> paseo-x-comms (our server)
                                    │  execFile("paseo", [cmd, "--host", <target>, "--json", …])
                                    ▼
                              paseo CLI --relay (E2EE) or direct TCP--> daemon
@@ -38,7 +38,7 @@ pi / opencode --MCP stdio--> paseo-cross-daemon-comms (our server)
 ### As a standalone MCP server
 
 ```sh
-npm install -g @xpufx/paseo-cross-daemon-comms
+npm install -g @xpufx/paseo-x-comms
 ```
 
 Requires the `paseo` CLI on PATH. Node ≥ 18.
@@ -51,7 +51,7 @@ cross-daemon UI (composer pill, agent panel, timeline rendering, and the
 root, so install without `--path`:
 
 ```sh
-paseo plugin add <owner>/paseo-cross-daemon-comms
+paseo plugin add <owner>/paseo-x-comms
 ```
 
 paseo runs a single `npm install` at the repo root, which pulls both the
@@ -73,9 +73,9 @@ required.
    use its address, e.g. `10.0.0.5:6767`, instead of an offer.)
 
 2. On **this** host, write the registry file with a name for that daemon
-   (see `paseo-cross-daemon-comms.example.json` for the format):
+   (see `paseo-x-comms.example.json` for the format):
 
-   `~/.paseo/paseo-cross-daemon-comms.json`:
+   `~/.paseo/paseo-x-comms.json`:
 
    ```json
    { "hsi": "https://app.paseo.sh/#offer=<b64>" }
@@ -87,13 +87,13 @@ required.
 3. Discover and talk:
 
    ```
-   paseo_cross_daemon_comms_list_agents(daemon="hsi")
-   paseo_cross_daemon_comms_send(daemon="hsi", agentId="…", prompt="…")
+   x_comms_list_agents(daemon="hsi")
+   x_comms_send(daemon="hsi", agentId="…", prompt="…")
    ```
 
 ## Tools
 
-> Tool names are `paseo_cross_daemon_comms_*`. When a client (pi, opencode)
+> Tool names are `x_comms_*`. When a client (pi, opencode)
 > loads this MCP server, it may prefix tool names with its own server
 > registration (for example `paseo_2d_cross_2d_daemon_2d_comms_...` in pi).
 > Match the tool names the client actually exposes in its tool list; the
@@ -101,24 +101,24 @@ required.
 
 | Tool | Purpose |
 |------|---------|
-| `paseo_cross_daemon_comms_list_daemons` | List registered daemons (names only) |
-| `paseo_cross_daemon_comms_add_daemon` | Register a daemon: pairing link or direct host |
-| `paseo_cross_daemon_comms_remove_daemon` | Forget a registered daemon |
-| `paseo_cross_daemon_comms_list_agents` | List agents on a daemon |
-| `paseo_cross_daemon_comms_inspect` | Inspect an agent on a daemon |
-| `paseo_cross_daemon_comms_send` | Send a message/task to an agent on a daemon (starts it if idle) |
-| `paseo_cross_daemon_comms_logs` | View an agent's activity/timeline on a daemon |
-| `paseo_cross_daemon_comms_wait` | Block until an agent on a daemon is idle; returns `permission` the moment it stalls on a prompt |
-| `paseo_cross_daemon_comms_list_permissions` | List pending permission requests on a daemon |
-| `paseo_cross_daemon_comms_allow_permission` | Allow an agent's permission request (`reqId` or `all`) |
-| `paseo_cross_daemon_comms_deny_permission` | Deny an agent's permission request (`reqId` or `all`, optional `message`/`interrupt`) |
+| `x_comms_list_daemons` | List registered daemons (names only) |
+| `x_comms_add_daemon` | Register a daemon: pairing link or direct host |
+| `x_comms_remove_daemon` | Forget a registered daemon |
+| `x_comms_list_agents` | List agents on a daemon |
+| `x_comms_inspect` | Inspect an agent on a daemon |
+| `x_comms_send` | Send a message/task to an agent on a daemon (starts it if idle) |
+| `x_comms_logs` | View an agent's activity/timeline on a daemon |
+| `x_comms_wait` | Block until an agent on a daemon is idle; returns `permission` the moment it stalls on a prompt |
+| `x_comms_list_permissions` | List pending permission requests on a daemon |
+| `x_comms_allow_permission` | Allow an agent's permission request (`reqId` or `all`) |
+| `x_comms_deny_permission` | Deny an agent's permission request (`reqId` or `all`, optional `message`/`interrupt`) |
 
 ## Message envelope
 
 `send` prepends a structured sender-meta envelope, one line, JSON:
 
 ```
-[paseo-cross-daemon-comms meta v2] {"paseoCrossDaemonComms":{"version":1,"sender":{…},"target":{…},"sentAt":"…"}}
+[x-comms] {"xComms":{"version":3,"type":"x-comms.incoming_message","sender":{…},"target":{…},"sentAt":"…"}}
 ```
 
 - `sender`: agentId, agentName, host, daemonServerId, cwd: who is talking and
@@ -167,7 +167,7 @@ ports and `unix://` also work but are not documented in the CLI help.)
 
 ## Security
 
-The registry (default `~/.paseo/paseo-cross-daemon-comms.json`) holds live
+The registry (default `~/.paseo/paseo-x-comms.json`) holds live
 pairing offers (serverId, daemon public keys, relay endpoints): it is
 **credentials**. Never publish it. Configure it as a plain JSON file yourself
 (see the example); do not paste offers into agent contexts and do not share
@@ -177,14 +177,14 @@ the file.
 
 | Env var | Default | Purpose |
 |---------|---------|---------|
-| `PASEO_CROSS_DAEMON_COMMS_REMOTES` | `~/.paseo/paseo-cross-daemon-comms.json` | registry file path |
+| `PASEO_CROSS_DAEMON_COMMS_REMOTES` | `~/.paseo/paseo-x-comms.json` | registry file path |
 | `PASEO_CROSS_DAEMON_COMMS_PASEO` | `paseo` | paseo binary |
 | `PASEO_CROSS_DAEMON_COMMS_TIMEOUT_MS` | `120000` | per paseo call timeout |
 
 ## Registering with clients
 
 Example configs live in this repo: `mcp-config.example.json` (pi-style
-registration) and `paseo-cross-daemon-comms.example.json` (registry format:
+registration) and `paseo-x-comms.example.json` (registry format:
 never commit your real registry).
 
 pi (`~/.config/mcp/mcp.json`): the stdio form supports `env` (pi needs MCP
@@ -193,11 +193,11 @@ enabled for this to be picked up):
 ```json
 {
   "mcpServers": {
-    "paseo-cross-daemon-comms": {
+    "paseo-x-comms": {
       "command": "node",
-      "args": ["/path/to/paseo-cross-daemon-comms.mjs"],
+      "args": ["/path/to/paseo-x-comms.mjs"],
       "type": "stdio",
-      "env": { "PASEO_CROSS_DAEMON_COMMS_REMOTES": "/path/to/paseo-cross-daemon-comms.json" }
+      "env": { "PASEO_CROSS_DAEMON_COMMS_REMOTES": "/path/to/paseo-x-comms.json" }
     }
   }
 }
@@ -209,11 +209,11 @@ opencode (`~/.config/opencode/opencode.jsonc`): note the key is `environment`
 ```jsonc
 {
   "mcp": {
-    "paseo-cross-daemon-comms": {
+    "paseo-x-comms": {
       "type": "local",
-      "command": ["node", "/path/to/paseo-cross-daemon-comms.mjs"],
+      "command": ["node", "/path/to/paseo-x-comms.mjs"],
       "enabled": true,
-      "environment": { "PASEO_CROSS_DAEMON_COMMS_REMOTES": "/path/to/paseo-cross-daemon-comms.json" }
+      "environment": { "PASEO_CROSS_DAEMON_COMMS_REMOTES": "/path/to/paseo-x-comms.json" }
     }
   }
 }
