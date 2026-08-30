@@ -228,16 +228,6 @@ export const identitySyncRpc = defineRpc({
   }),
 });
 
-export const serverLocateRpc = defineRpc({
-  name: "server.locate",
-  input: z.object({}),
-  output: z.object({
-    path: z.string().nullable(),
-    configured: z.boolean(),
-    defaultPath: z.string(),
-  }),
-});
-
 export const agentPromptGetRpc = defineRpc({
   name: "agent_prompt.get",
   input: z.object({}),
@@ -261,19 +251,13 @@ export const serverCheckRpc = defineRpc({
   name: "server.check",
   input: z.object({}),
   output: z.object({
-    path: z.string().nullable(),
+    path: z.string(),
     located: z.boolean(),
     version: z.string().nullable(),
     expected: z.string(),
     match: z.boolean(),
     error: z.string().nullable(),
   }),
-});
-
-export const serverSetPathRpc = defineRpc({
-  name: "server.set_path",
-  input: z.object({ path: z.string().min(1) }),
-  output: z.object({ path: z.string(), configured: z.boolean() }),
 });
 
 export const conversationSendRpc = defineRpc({

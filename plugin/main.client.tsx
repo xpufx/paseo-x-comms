@@ -17,8 +17,6 @@ import {
   identitySyncRpc,
   serverStatusRpc,
   serverCheckRpc,
-  serverLocateRpc,
-  serverSetPathRpc,
   introspectAgentsRpc,
   introduceAgentsRpc,
   agentPromptGetRpc,
@@ -52,8 +50,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
   const callIdentitySync = useRpc(identitySyncRpc);
   const callStatus = useRpc(serverStatusRpc);
   const callCheck = useRpc(serverCheckRpc);
-  const callLocate = useRpc(serverLocateRpc);
-  const callSetPath = useRpc(serverSetPathRpc);
   const callIntrospect = useRpc(introspectAgentsRpc);
   const callIntroduce = useRpc(introduceAgentsRpc);
   const callAgentPromptGet = useRpc(agentPromptGetRpc);
@@ -225,18 +221,8 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
     staleTime: 30_000,
   });
   const introduce = useMutation({ mutationFn: callIntroduce });
-  const locate = useQuery({ queryKey: ["server-locate"], queryFn: () => callLocate({}) });
-  const setPath = useMutation({
-    mutationFn: callSetPath,
-    onSuccess: () => { void locate.refetch(); void status.refetch(); void check.refetch(); },
-  });
-  const [serverPathDraft, setServerPathDraft] = useState("");
   const status = useQuery({ queryKey: ["server-status"], queryFn: () => callStatus({}) });
   const check = useQuery({ queryKey: ["server-check"], queryFn: () => callCheck({}), retry: false });
-  React.useEffect(() => {
-    if (locate.data && serverPathDraft === "") setServerPathDraft(locate.data.path ?? locate.data.defaultPath);
-    if (locate.data) void check.refetch();
-  }, [locate.data, serverPathDraft]);
   const add = useMutation({ mutationFn: callAdd });
   const update = useMutation({ mutationFn: callUpdate });
   const remove = useMutation({ mutationFn: callRemove });
@@ -452,38 +438,18 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       </Pressable>
       {!prereqsCollapsed ? (
         <>
-          {locate.data ? (
-            <Text style={styles.detail} selectable>
-              {locate.data.path ? `server found${locate.data.configured ? " (configured)" : ""} at ${locate.data.path}` : "server not found"}
+          <Text style={styles.detail} selectable>
+            {status.data ? `bundled server at ${status.data.installPath}` : "bundled server"}
+          </Text>
+          {check.data ? (
+            <Text style={[styles.detail, check.data.match ? styles.detailOk : styles.detailWarn]} selectable>
+              {check.data.error
+                ? `server check failed: ${check.data.error}`
+                : check.data.match
+                  ? `server reports v${check.data.version} (matches plugin v${check.data.expected})`
+                  : `server reports v${check.data.version}, plugin expects v${check.data.expected}`}
             </Text>
           ) : null}
-          <Text style={styles.label}>Server path override</Text>
-          <TextInput
-            style={styles.input}
-            value={serverPathDraft}
-            onChangeText={setServerPathDraft}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {serverPathDraft.trim().length > 0 &&
-          serverPathDraft.trim() !== (locate.data?.path ?? locate.data?.defaultPath) ? (
-            <Pressable accessibilityRole="button" onPress={() => setPath.mutate({ path: serverPathDraft.trim() })} style={styles.buttonSmall}>
-              <Text style={styles.buttonTextSmall}>{setPath.isPending ? "Setting…" : "Use this path"}</Text>
-            </Pressable>
-          ) : null}
-          {locate.data?.path ? (
-            check.data ? (
-              <Text style={[styles.detail, check.data.match ? styles.detailOk : styles.detailWarn]} selectable>
-                {check.data.error
-                  ? `server at ${check.data.path} failed to report a version: ${check.data.error}`
-                  : check.data.match
-                    ? `server reports v${check.data.version} (matches plugin v${check.data.expected})`
-                    : `server reports v${check.data.version}, plugin expects v${check.data.expected}`}
-              </Text>
-            ) : null
-          ) : (
-            <Text style={styles.detail}>Server not located. Reinstall the plugin, or set an explicit path above.</Text>
-          )}
         </>
       ) : null}
 

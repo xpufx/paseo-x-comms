@@ -20,7 +20,7 @@ import {
   readRegistry,
   mutateRegistry,
 } from "./registry.server";
-import { locateServer, ensureServerDeps } from "./server-locate.server";
+import { serverPath } from "./server-status.server";
 
 // Startup check: validate whatever is already in the registry as soon as the
 // plugin backend loads, so a corrupt or invalid config is caught early and
@@ -258,33 +258,13 @@ export async function handleIntroduceAgents(input: {
   second: { daemon: string; agentId: string; shortId: string; name: string };
   message: string;
 }) {
-  const located = await locateServer(readServerPath());
-  if (!located.path) {
-    return {
-      sends: [
-        { daemon: input.first.daemon, agentId: input.first.agentId, ok: false, error: "MCP server not found; reinstall the plugin" },
-        { daemon: input.second.daemon, agentId: input.second.agentId, ok: false, error: "MCP server not found; reinstall the plugin" },
-      ],
-    };
-  }
-  const serverPath = located.path;
-  try {
-    await ensureServerDeps(serverPath);
-  } catch (cause) {
-    const detail = cause instanceof Error ? cause.message : String(cause);
-    return {
-      sends: [
-        { daemon: input.first.daemon, agentId: input.first.agentId, ok: false, error: `server deps failed: ${detail}` },
-        { daemon: input.second.daemon, agentId: input.second.agentId, ok: false, error: `server deps failed: ${detail}` },
-      ],
-    };
-  }
+  const path = serverPath();
   const firstLabel = `Agent ${input.first.shortId} (${input.first.name}) on daemon "${input.first.daemon}"`;
   const secondLabel = `Agent ${input.second.shortId} (${input.second.name}) on daemon "${input.second.daemon}"`;
   const firstMessage = `${input.message.trim()}\n\nYou have been introduced to ${secondLabel}. To reply, use x_comms_send with daemon="${input.second.daemon}" and agentId="${input.second.agentId}". Your messages will be delivered with a sender envelope the other agent can use to reply.`;
   const secondMessage = `${input.message.trim()}\n\nYou have been introduced to ${firstLabel}. To reply, use x_comms_send with daemon="${input.first.daemon}" and agentId="${input.first.agentId}". Your messages will be delivered with a sender envelope the other agent can use to reply.`;
 
-  const client = new McpStdioClient(serverPath);
+  const client = new McpStdioClient(path);
   try {
     await client.connect();
     const targets = [
@@ -319,14 +299,14 @@ export async function handleIntroduceAgents(input: {
 }
 
 export async function handleServerStatus() {
-  const located = await locateServer(readServerPath());
-  const version = located.path ? extractServerVersion(located.path) : null;
+  const path = serverPath();
+  const version = extractServerVersion(path);
   return {
-    installPath: located.path ?? located.defaultPath,
-    installed: located.path !== null,
-    configured: located.configured,
+    installPath: path,
+    installed: true,
+    configured: true,
     version,
-    syntaxOk: located.path !== null,
+    syntaxOk: true,
     error: null,
   };
 }
@@ -340,59 +320,21 @@ function expectedServerVersion(): string {
   return EXPECTED_SERVER_VERSION;
 }
 
-// Determines the version the *located* server actually reports over MCP by
-// spawning it and reading serverInfo.version from the initialize handshake.
-// This is the same server path the plugin uses for every other RPC, so the
-// reported version reflects what would actually run.
+// Reports the version the bundled server carries and whether it matches the
+// plugin's expected version. The server always ships with the plugin, so this
+// is a passive sanity check, not a locate/install step.
 export async function handleServerCheck() {
-  const located = await locateServer(readServerPath());
-  if (!located.path) {
-    return {
-      path: null,
-      located: false,
-      version: null,
-      expected: expectedServerVersion(),
-      match: false,
-      error: null,
-    };
-  }
-  try {
-    await ensureServerDeps(located.path);
-  } catch (cause) {
-    return {
-      path: located.path,
-      located: true,
-      version: null,
-      expected: expectedServerVersion(),
-      match: false,
-      error: `server deps failed: ${cause instanceof Error ? cause.message : String(cause)}`,
-    };
-  }
-  const client = new McpStdioClient(located.path);
-  try {
-    const { serverInfo } = await client.connect();
-    const version = (serverInfo as { version?: string } | undefined)?.version ?? null;
-    const expected = expectedServerVersion();
-    return {
-      path: located.path,
-      located: true,
-      version,
-      expected,
-      match: version !== null && version === expected,
-      error: null,
-    };
-  } catch (cause) {
-    return {
-      path: located.path,
-      located: true,
-      version: null,
-      expected: expectedServerVersion(),
-      match: false,
-      error: cause instanceof Error ? cause.message : String(cause),
-    };
-  } finally {
-    client.close();
-  }
+  const path = serverPath();
+  const version = extractServerVersion(path);
+  const expected = expectedServerVersion();
+  return {
+    path,
+    located: true,
+    version,
+    expected,
+    match: version !== null && version === expected,
+    error: null,
+  };
 }
 
 // Sends a message to a specific agent on a daemon through the located server.
@@ -408,16 +350,8 @@ function extractServerVersion(serverPath: string): string | null {
 }
 
 export async function handleConversationSend(input: { daemon: string; agentId: string; prompt: string; fromAgentId?: string; fromAgentName?: string }) {
-  const located = await locateServer(readServerPath());
-  if (!located.path) {
-    return { daemon: input.daemon, agentId: input.agentId, ok: false, error: "MCP server not found; reinstall the plugin" };
-  }
-  try {
-    await ensureServerDeps(located.path);
-  } catch (cause) {
-    return { daemon: input.daemon, agentId: input.agentId, ok: false, error: `server deps failed: ${cause instanceof Error ? cause.message : String(cause)}` };
-  }
-  const client = new McpStdioClient(located.path);
+  const path = serverPath();
+  const client = new McpStdioClient(path);
   // The conversation list keys conversations off the peer's serverId (from the
   // envelope), but the send tool resolves daemons by registered *name*. Map the
   // serverId back to the registered name when we have an identity mapping.
@@ -500,25 +434,6 @@ function readUiPrefs(): UiPrefsState {
     // corrupt prefs fall back to defaults; not fatal
   }
   return {};
-}
-
-function readServerPath(): string | undefined {
-  return readUiPrefs().serverPath;
-}
-
-export async function handleServerLocate() {
-  const located = await locateServer(readServerPath());
-  return { path: located.path, configured: located.configured, defaultPath: located.defaultPath };
-}
-
-export async function handleServerSetPath(input: { path: string }) {
-  const path = input.path.trim();
-  const state = readUiPrefs();
-  writePrefsFile(UI_PREFS_FILE, JSON.stringify({ ...state, serverPath: path, serverPathSet: true }, null, 2) + "\n", {
-    encoding: "utf8",
-    mode: 0o600,
-  });
-  return { path, configured: true };
 }
 
 export function identityFor(daemon: string): string | null {
