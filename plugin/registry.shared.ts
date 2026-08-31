@@ -142,12 +142,6 @@ export const introduceAgentsRpc = defineRpc({
   }),
 });
 
-
-
-
-
-
-
 export const daemonProbeRpc = defineRpc({
   name: "daemon.probe",
   input: z.object({ value: z.string().min(1).max(512) }),
@@ -225,25 +219,6 @@ export const identitySyncRpc = defineRpc({
   output: z.object({
     identities: z.record(z.string(), z.string()),
     hostnames: z.record(z.string(), z.string()),
-  }),
-});
-
-export const agentPromptGetRpc = defineRpc({
-  name: "agent_prompt.get",
-  input: z.object({}),
-  output: z.object({
-    appendSystemPrompt: z.string(),
-    hasBlock: z.boolean(),
-  }),
-});
-
-export const agentPromptSetRpc = defineRpc({
-  name: "agent_prompt.set",
-  input: z.object({ enabled: z.boolean() }),
-  output: z.object({
-    appendSystemPrompt: z.string(),
-    hasBlock: z.boolean(),
-    error: z.string().nullable(),
   }),
 });
 

@@ -17,7 +17,7 @@ The plugin embeds the MCP server and adds the X-comms UI. Agents get `x_comms_*`
 
 ### What you get
 
-* **Main surface — X-comms** (`plugin/main.client.tsx`): registered daemons list with health (reachable/unreachable + agent count), add/edit/remove with host-form validation and reachability probe, refresh (identity + snapshot), server version check, agent-prompt block toggle, introduce-agents picker, debug dump per daemon.
+* **Main surface — X-comms** (`plugin/main.client.tsx`): registered daemons list with health (reachable/unreachable + agent count), add/edit/remove with host-form validation and reachability probe, refresh (identity + snapshot), server version check, introduce-agents picker, debug dump per daemon.
 * **Composer pill** (`plugin/x-comms-pill.tsx`): one `X-comms` pill per agent in the composer; opens the conversation panel for that agent.
 * **Agent panel** (`plugin/x-comms-panel.tsx` / `x-comms-timeline.tsx` / `x-comms-conversation.tsx`): per-agent conversation view with timeline rendering of the `[x-comms]` envelope, send/reply, wait, and permission handling.
 * **Embedded MCP server** (`mcp/paseo-x-comms.mjs`): spawned via `serverPath()` from `import.meta.url`; shares the repo-root `node_modules` — no separate install or `paseo` on PATH required beyond the daemon itself.
@@ -57,10 +57,6 @@ Quick pairing:
 
 1. On the **target** daemon: `paseo daemon pair --json` → copy the `url` (`https://app.paseo.sh/#offer=…`). For a directly-reachable daemon, use its address instead.
 2. On **this** daemon: open the X-comms Main surface → *Add daemon* → paste the offer or address. The UI probes reachability before saving (with "Add anyway" for offline hosts).
-
-### Agent prompt block (optional)
-
-Main surface → *Agent prompt*: toggles a marked X-comms block in the daemon's `appendSystemPrompt` (`agentPromptGetRpc` / `agentPromptSetRpc`). Agents work without it — every `x_comms_send` stamps a `[x-comms]` envelope regardless — but the block makes agents aware of cross-daemon comms in their system prompt.
 
 ### How messaging works
 

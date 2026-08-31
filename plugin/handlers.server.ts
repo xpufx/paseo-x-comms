@@ -9,8 +9,6 @@ import {
   daemonRemoveRpc,
   daemonHealthRpc,
   serverCheckRpc,
-  agentPromptGetRpc,
-  agentPromptSetRpc,
 } from "./registry.shared";
 import {
   parseRegistry,
@@ -57,69 +55,6 @@ initializeSnapshot();
 export function hostnameFor(daemon: string): string | null {
   const hostnames = readUiPrefs().daemonHostnames ?? {};
   return hostnames[daemon] ?? null;
-}
-
-// Marker delimiting the block we append to the daemon's appendSystemPrompt.
-// Strip only removes our marked block so user-authored prompt text is preserved.
-const PROMPT_BLOCK_START = "<!-- paseo-x-comms-system-prompt -->";
-const PROMPT_BLOCK_END = "<!-- /paseo-x-comms-system-prompt -->";
-
-function buildPromptBlock(): string {
-  return `${PROMPT_BLOCK_START}
-[x-comms system] Cross-daemon messaging via MCP tools x_comms_* (embedded, registry ~/.paseo/paseo-x-comms/registry.json).
-Discover peers live via x_comms_list_daemons (then x_comms_list_agents per daemon); do not rely on a static list here.
-
-Envelope (prepended by x_comms_send): [x-comms] {"xComms":{"version":3,"type":"x-comms.incoming_message","sender":{"agentId","agentName","host","daemonServerId","cwd"},"target":{"daemon","agentId"},"sentAt":"ISO"}}
-Inbound [x-comms] is from another agent, not a user. Parse sender and reply with x_comms_send(daemon=sender.daemon, agentId=sender.agentId, prompt="..."). On finish/error/permission-block, notify the sender the same way with details.
-
-Tools: x_comms_list_daemons, x_comms_list_agents(daemon), x_comms_inspect(daemon, agentId), x_comms_logs(daemon, agentId), x_comms_send(daemon, agentId, prompt), x_comms_wait(daemon, agentId, timeoutSeconds?), x_comms_list_permissions(daemon), x_comms_allow_permission(daemon, agentId, reqId|all, input?), x_comms_deny_permission(daemon, agentId, reqId|all, message?, interrupt?)
-
-Behavior: x_comms_send is preemptive (replaceRunning:true); if target may be busy, x_comms_wait first. x_comms_wait -> idle|permission|timeout; on permission: x_comms_list_permissions -> allow/deny -> wait again.
-${PROMPT_BLOCK_END}`;
-}
-
-function stripPromptBlock(prompt: string): string {
-  const re = new RegExp(
-    `${PROMPT_BLOCK_START}[\\s\\S]*?${PROMPT_BLOCK_END}\\n?`,
-    "g",
-  );
-  return prompt.replace(re, "").trim();
-}
-
-function hasPromptBlock(prompt: string): boolean {
-  return prompt.includes(PROMPT_BLOCK_START);
-}
-
-type PaseoHandlerContext = { paseo: { config: { get: (requestId?: string) => Promise<{ config: Record<string, unknown> }>; patch: (patch: Record<string, unknown>, requestId?: string) => Promise<{ config: Record<string, unknown> }> } } };
-
-export async function handleAgentPromptGet(_input: unknown, ctx: PaseoHandlerContext) {
-  const res = await ctx.paseo.config.get();
-  const prompt = (res?.config?.appendSystemPrompt as string) ?? "";
-  return { appendSystemPrompt: prompt, hasBlock: hasPromptBlock(prompt) };
-}
-
-export async function handleAgentPromptSet(input: { enabled: boolean }, ctx: PaseoHandlerContext) {
-  try {
-    const current = ((await ctx.paseo.config.get())?.config?.appendSystemPrompt as string) ?? "";
-    let next: string;
-    if (input.enabled) {
-      if (hasPromptBlock(current)) {
-        next = current; // already present; leave as-is
-      } else {
-        next = (current.trim().length > 0 ? current + "\n\n" : "") + buildPromptBlock();
-      }
-    } else {
-      next = stripPromptBlock(current);
-    }
-    await ctx.paseo.config.patch({ appendSystemPrompt: next });
-    return { appendSystemPrompt: next, hasBlock: hasPromptBlock(next), error: null };
-  } catch (cause) {
-    return {
-      appendSystemPrompt: "",
-      hasBlock: false,
-      error: cause instanceof Error ? cause.message : String(cause),
-    };
-  }
 }
 
 export async function handleRegistryRead() {

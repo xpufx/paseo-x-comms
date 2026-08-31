@@ -11,8 +11,6 @@ import {
   handleDaemonHealth,
   handleServerStatus,
   handleServerCheck,
-  handleAgentPromptGet,
-  handleAgentPromptSet,
   handleConversationSend,
   handleIntrospectAgents,
   handleIntroduceAgents,
@@ -31,8 +29,6 @@ import {
   daemonHealthRpc,
   serverStatusRpc,
   serverCheckRpc,
-  agentPromptGetRpc,
-  agentPromptSetRpc,
   conversationSendRpc,
   introspectAgentsRpc,
   introduceAgentsRpc,
@@ -52,8 +48,6 @@ export default function contribute(plugin: PluginContext) {
   plugin.handle(daemonHealthRpc, handleDaemonHealth);
   plugin.handle(serverStatusRpc, handleServerStatus);
   plugin.handle(serverCheckRpc, handleServerCheck);
-  plugin.handle(agentPromptGetRpc, handleAgentPromptGet);
-  plugin.handle(agentPromptSetRpc, handleAgentPromptSet);
   plugin.handle(conversationSendRpc, handleConversationSend);
   plugin.handle(introspectAgentsRpc, handleIntrospectAgents);
   plugin.handle(introduceAgentsRpc, handleIntroduceAgents);

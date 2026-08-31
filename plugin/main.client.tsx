@@ -19,8 +19,6 @@ import {
   serverCheckRpc,
   introspectAgentsRpc,
   introduceAgentsRpc,
-  agentPromptGetRpc,
-  agentPromptSetRpc,
 } from "./registry.shared";
 
 const HOST_FORM_HINT =
@@ -52,9 +50,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
   const callCheck = useRpc(serverCheckRpc);
   const callIntrospect = useRpc(introspectAgentsRpc);
   const callIntroduce = useRpc(introduceAgentsRpc);
-  const callAgentPromptGet = useRpc(agentPromptGetRpc);
-  const callAgentPromptSet = useRpc(agentPromptSetRpc);
-
   const [newName, setNewName] = useState("");
   const [newValue, setNewValue] = useState("");
   const [actionResult, setActionResult] = useState<{ ok: boolean; text: string } | null>(null);
@@ -64,19 +59,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
   const [dumpState, setDumpState] = useState<Record<string, unknown> | null>(null);
   const [dumpDaemon, setDumpDaemon] = useState<string | null>(null);
   const [dumpOpen, setDumpOpen] = useState(false);
-
-  // Agent-prompt (system prompt) block: surface the daemon's appendSystemPrompt
-  // and toggle our marked x-comms block. Optional: the tool works without
-  // it via the raw meta envelope; the block makes agents aware of x-comms
-  // comms in their system prompt.
-  const agentPrompt = useQuery({
-    queryKey: ["agent-prompt"],
-    queryFn: () => callAgentPromptGet({}),
-  });
-  const agentPromptSet = useMutation({
-    mutationFn: (enabled: boolean) => callAgentPromptSet({ enabled }),
-    onSuccess: () => agentPrompt.refetch(),
-  });
 
   // Introduce: which picker (1 or 2) is expanded, selections, editable message.
   const [expandedPicker, setExpandedPicker] = useState<1 | 2 | null>(null);
@@ -107,8 +89,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       sectionRow: { flexDirection: "row" as const, alignItems: "center" as const, marginTop: 20 },
       sectionHeader: { flexDirection: "row" as const, alignItems: "center" as const, marginTop: 20 },
       sectionHeaderRow: { flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "space-between" as const, marginTop: 20 },
-      subSection: { gap: 8, marginTop: 8 },
-      previewBox: { maxHeight: 160, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 6, padding: 8 },
       chevron: { color: theme.colors.accent, fontSize: 14, marginRight: 8 },
       detail: { color: theme.colors.foregroundMuted, fontSize: 13 },
       detailOk: { color: theme.colors.statusSuccess, fontSize: 13 },
@@ -452,46 +432,6 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
           ) : null}
         </>
       ) : null}
-
-      <Text style={styles.section}>Agent prompt</Text>
-      <View style={styles.subSection}>
-        {agentPrompt.isLoading ? (
-          <Text style={styles.detail}>Reading daemon system prompt…</Text>
-        ) : agentPrompt.error ? (
-          <Text style={[styles.detail, styles.detailWarn]} selectable>{String(agentPrompt.error.message ?? agentPrompt.error)}</Text>
-        ) : (
-          <>
-            <Text style={styles.detail} selectable>
-              {agentPrompt.data?.hasBlock
-                ? "X-comms block is present in this daemon's agent prompt."
-                : "X-comms block is NOT present in this daemon's agent prompt."}
-            </Text>
-            <View style={styles.previewBox}>
-              <ScrollView>
-                <Text style={styles.mono} selectable>
-                  {agentPrompt.data?.appendSystemPrompt || "(empty)"}
-                </Text>
-              </ScrollView>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => agentPromptSet.mutate(!agentPrompt.data?.hasBlock)}
-              style={styles.buttonSmall}
-            >
-              <Text style={styles.buttonTextSmall}>
-                {agentPromptSet.isPending
-                  ? "Applying…"
-                  : agentPrompt.data?.hasBlock
-                    ? "Remove x-comms block"
-                    : "Add x-comms block"}
-              </Text>
-            </Pressable>
-            {agentPromptSet.isError ? (
-              <Text style={[styles.detail, styles.detailWarn]} selectable>{String(agentPromptSet.error.message ?? agentPromptSet.error)}</Text>
-            ) : null}
-          </>
-        )}
-      </View>
 
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.section}>Registered daemons</Text>

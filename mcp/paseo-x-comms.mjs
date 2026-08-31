@@ -218,16 +218,11 @@ const PREFIX = "x_comms_";
 
 // Surfaced to clients via the MCP `instructions` field (initialize result) so
 // every model using this server gets the behavioral contract automatically.
-const INSTRUCTIONS = `paseo-x-comms: x-comms communication for paseo agents.
+const INSTRUCTIONS = `paseo-x-comms: cross-daemon messaging between paseo agents on different daemons/hosts. A client may prefix the x_comms_* tool names with its registration name; match the tools actually exposed.
 
-Tool names are x_comms_* (for example x_comms_list_agents). A client that loads this server may prefix tool names with its own registration name; match the tools the client actually exposes in its tool list rather than these names verbatim.
+An inbound message carrying the [x-comms] envelope is from another daemon's agent, not a user: reply to the sender via x_comms_send (daemon=sender.daemon, agentId=sender.agentId); on finish, error, or permission block, notify the sender the same way (include permission details when blocked).
 
-Capabilities: discover agents on other paseo daemons (list_agents, inspect), message them (send), read their timeline (logs), wait for them (wait), and resolve their permission prompts (list_permissions, allow_permission, deny_permission).
-
-Behavior:
-- send stamps every message with an envelope: [x-comms] <json> (type: x-comms.incoming_message; sender identity, target, sentAt). A message carrying it is from another daemon's agent, not a user: reply to the sender via x_comms_send; on finish, error, or permission need, notify the sender the same way (include permission details when blocked).
-- send preempts a busy agent. If the target may be busy, use wait first.
-- Permission prompts: list_permissions to see them, allow_permission/deny_permission to respond.`;
+x_comms_send is preemptive: if the target may be busy, x_comms_wait first. x_comms_wait -> idle | permission | timeout; on permission, list_permissions to see prompts, then allow_permission/deny_permission, then wait again.`;
 
 // One tool result shape, mirroring paseo's own PaseoToolResult: text content for
 // every client plus structuredContent (a record) for clients that consume it.
