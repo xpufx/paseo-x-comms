@@ -52,12 +52,6 @@ export function CrossDaemonConversation({
     staleTime: 30000,
   });
 
-  const selfName = (() => {
-    try {
-      const snap = (paseo.agents as unknown as { ref: (id: string) => { current: () => { title?: string | null; id: string } | null } }).ref(agentId).current();
-      return snap?.title ?? null;
-    } catch { return null; }
-  })();
   const [lastSent, setLastSent] = useState<{ at: string; to: string } | null>(null);
   const [sentTick, setSentTick] = useState(0);
   const send = useMutation({
@@ -67,7 +61,7 @@ export function CrossDaemonConversation({
         agentId: target?.counterparty.agentId ?? "",
         prompt: draft,
         fromAgentId: agentId,
-        fromAgentName: selfName,
+        fromAgentName: "User",
       }),
     onSuccess: (data) => {
       if (data.ok && target) {
