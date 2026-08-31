@@ -2,7 +2,7 @@ import { usePaseo, useRpc, type PluginTheme } from "@getpaseo/plugin";
 import { Modal } from "@getpaseo/plugin/react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Clipboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { conversationSendRpc, introspectAgentsRpc } from "./registry.shared";
 import { deriveConversations, type ConversationPartner } from "./conversations";
 
@@ -133,9 +133,21 @@ export function CrossDaemonConversation({
           {send.isPending ? "Sending…" : "Send"}
         </Text>
       </Pressable>
-      {send.error ? <Text style={{ color: theme.colors.statusDanger, fontSize: 12, marginTop: 6 }}>{String(send.error)}</Text> : null}
+      {send.error ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+          <Text style={{ color: theme.colors.statusDanger, fontSize: 12, flexShrink: 1 }}>{String(send.error)}</Text>
+          <Pressable onPress={() => void Clipboard.setString(String(send.error))} hitSlop={10}>
+            <Text style={{ color: theme.colors.accent, fontSize: 16, paddingHorizontal: 6 }}>⧉</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {send.data && !send.data.ok ? (
-        <Text style={{ color: theme.colors.statusDanger, fontSize: 12, marginTop: 6 }}>{send.data.error}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+          <Text style={{ color: theme.colors.statusDanger, fontSize: 12, flexShrink: 1 }}>{send.data.error}</Text>
+          <Pressable onPress={() => void Clipboard.setString(String(send.data?.error ?? ""))} hitSlop={10}>
+            <Text style={{ color: theme.colors.accent, fontSize: 16, paddingHorizontal: 6 }}>⧉</Text>
+          </Pressable>
+        </View>
       ) : null}
       <Modal title="New conversation" open={pickerOpen} onOpenChange={setPickerOpen}>
         <Modal.Content>

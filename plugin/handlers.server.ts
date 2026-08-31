@@ -233,7 +233,13 @@ export async function handleIntroduceAgents(input: {
   second: { daemon: string; agentId: string; shortId: string; name: string };
   message: string;
 }) {
-  const path = serverPath();
+  let path: string;
+  try {
+    path = serverPath();
+  } catch (cause) {
+    const msg = cause instanceof Error ? cause.message : String(cause);
+    return { sends: [{ daemon: input.first.daemon, agentId: input.first.agentId, ok: false, error: msg }, { daemon: input.second.daemon, agentId: input.second.agentId, ok: false, error: msg }] };
+  }
   const firstLabel = `Agent ${input.first.shortId} (${input.first.name}) on daemon "${input.first.daemon}"`;
   const secondLabel = `Agent ${input.second.shortId} (${input.second.name}) on daemon "${input.second.daemon}"`;
   const firstMessage = `${input.message.trim()}\n\nYou have been introduced to ${secondLabel}. To reply, use x_comms_send with daemon="${input.second.daemon}" and agentId="${input.second.agentId}". Your messages will be delivered with a sender envelope the other agent can use to reply.`;
@@ -274,16 +280,13 @@ export async function handleIntroduceAgents(input: {
 }
 
 export async function handleServerStatus() {
-  const path = serverPath();
-  const version = extractServerVersion(path);
-  return {
-    installPath: path,
-    installed: true,
-    configured: true,
-    version,
-    syntaxOk: true,
-    error: null,
-  };
+  try {
+    const path = serverPath();
+    const version = extractServerVersion(path);
+    return { installPath: path, installed: true, configured: true, version, syntaxOk: true, error: null };
+  } catch (cause) {
+    return { installPath: "", installed: false, configured: false, version: null, syntaxOk: false, error: cause instanceof Error ? cause.message : String(cause) };
+  }
 }
 
 // The server version this plugin is built against, bumped in lockstep with the
@@ -299,17 +302,14 @@ function expectedServerVersion(): string {
 // plugin's expected version. The server always ships with the plugin, so this
 // is a passive sanity check, not a locate/install step.
 export async function handleServerCheck() {
-  const path = serverPath();
-  const version = extractServerVersion(path);
-  const expected = expectedServerVersion();
-  return {
-    path,
-    located: true,
-    version,
-    expected,
-    match: version !== null && version === expected,
-    error: null,
-  };
+  try {
+    const path = serverPath();
+    const version = extractServerVersion(path);
+    const expected = expectedServerVersion();
+    return { path, located: true, version, expected, match: version !== null && version === expected, error: null };
+  } catch (cause) {
+    return { path: "", located: false, version: null, expected: expectedServerVersion(), match: false, error: cause instanceof Error ? cause.message : String(cause) };
+  }
 }
 
 // Sends a message to a specific agent on a daemon through the located server.
@@ -325,13 +325,11 @@ function extractServerVersion(serverPath: string): string | null {
 }
 
 export async function handleConversationSend(input: { daemon: string; agentId: string; prompt: string; fromAgentId?: string; fromAgentName?: string }) {
-  const path = serverPath();
-  const client = new McpStdioClient(path);
-  // The conversation list keys conversations off the peer's serverId (from the
-  // envelope), but the send tool resolves daemons by registered *name*. Map the
-  // serverId back to the registered name when we have an identity mapping.
   const sendDaemon = daemonNameForServerId(input.daemon) ?? input.daemon;
+  let client: InstanceType<typeof McpStdioClient> | null = null;
   try {
+    const path = serverPath();
+    client = new McpStdioClient(path);
     await client.connect();
     await client.callTool("x_comms_send", {
       daemon: sendDaemon,
@@ -349,7 +347,7 @@ export async function handleConversationSend(input: { daemon: string; agentId: s
       error: cause instanceof Error ? cause.message : String(cause),
     };
   } finally {
-    client.close();
+    client?.close();
   }
 }
 
