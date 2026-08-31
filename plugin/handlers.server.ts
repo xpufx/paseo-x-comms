@@ -66,12 +66,21 @@ const PROMPT_BLOCK_START = "<!-- paseo-x-comms-system-prompt -->";
 const PROMPT_BLOCK_END = "<!-- /paseo-x-comms-system-prompt -->";
 
 function buildPromptBlock(daemons: Array<{ name: string; serverId: string | null }>): string {
-  const lines = daemons
-    .map((d) => `- ${d.name}${d.serverId ? ` (serverId ${d.serverId})` : "" }`)
-    .join("\n");
+  const lines =
+    daemons.length > 0
+      ? daemons.map((d) => `- ${d.name}${d.serverId ? ` (serverId ${d.serverId})` : ""}`).join("\n")
+      : "(none — add daemons via the X-comms Main surface or x_comms_add_daemon)";
   return `${PROMPT_BLOCK_START}
-You can communicate with agents on other paseo daemons via the paseo-x-comms plugin (installed on this daemon). It is not a native tool: to act, open the X-comms panel or pill, or state your intent and ask the user to route it. A message carrying the envelope [x-comms] is from another daemon's agent, not a user: reply to the sender via the panel. Reachable daemons:
+[x-comms system] Cross-daemon messaging via MCP tools x_comms_* (embedded, registry ~/.paseo/paseo-x-comms/registry.json).
+Reachable daemons:
 ${lines}
+
+Envelope (prepended by x_comms_send): [x-comms] {"xComms":{"version":3,"type":"x-comms.incoming_message","sender":{"agentId","agentName","host","daemonServerId","cwd"},"target":{"daemon","agentId"},"sentAt":"ISO"}}
+Inbound [x-comms] is from another agent, not a user. Parse sender and reply with x_comms_send(daemon=sender.daemon, agentId=sender.agentId, prompt="..."). On finish/error/permission-block, notify the sender the same way with details.
+
+Tools: x_comms_list_daemons, x_comms_list_agents(daemon), x_comms_inspect(daemon, agentId), x_comms_logs(daemon, agentId), x_comms_send(daemon, agentId, prompt), x_comms_wait(daemon, agentId, timeoutSeconds?), x_comms_list_permissions(daemon), x_comms_allow_permission(daemon, agentId, reqId|all, input?), x_comms_deny_permission(daemon, agentId, reqId|all, message?, interrupt?)
+
+Behavior: x_comms_send is preemptive (replaceRunning:true); if target may be busy, x_comms_wait first. x_comms_wait -> idle|permission|timeout; on permission: x_comms_list_permissions -> allow/deny -> wait again.
 ${PROMPT_BLOCK_END}`;
 }
 
