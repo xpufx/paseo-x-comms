@@ -430,26 +430,8 @@ export function daemonNameForServerId(serverId: string | null): string | null {
 
 async function fetchPeerServerInfo(value: string): Promise<{ serverId: string; hostname: string | null } | null> {
   const offer = parseOffer(value);
-  if (offer?.serverId) {
-    try {
-      const res = await runPaseoDumpJson(["daemon", "status", "--host", value, "--json"]);
-      const payload = res && typeof res === "object" ? (res as Record<string, unknown>) : null;
-      const hostname = payload && typeof payload.hostname === "string" ? (payload.hostname as string) : null;
-      return { serverId: offer.serverId, hostname };
-    } catch {
-      return { serverId: offer.serverId, hostname: null };
-    }
-  }
-  try {
-    const res = await runPaseoDumpJson(["daemon", "status", "--host", value, "--json"]);
-    const payload = res && typeof res === "object" ? (res as Record<string, unknown>) : null;
-    const serverId = payload && typeof payload.serverId === "string" ? (payload.serverId as string) : null;
-    const hostname = payload && typeof payload.hostname === "string" ? (payload.hostname as string) : null;
-    if (serverId) return { serverId, hostname };
-    return null;
-  } catch {
-    return null;
-  }
+  if (offer?.serverId) return { serverId: offer.serverId, hostname: null };
+  return null;
 }
 
 /**
