@@ -2,11 +2,13 @@
 
 > Tracks the latest paseo beta (`@getpaseo/* 0.7.0-beta.3`). Expect breaking changes between versions.
 
+> Work in progress. Not all features work %100 as described.
+
 [paseo](https://paseo.sh) is an agent orchestrator: AI coding agents run on paseo daemons, each managing workspaces, tools, and permissions. **paseo-x-comms** lets agents on one daemon talk to agents on another — even across hosts — via the daemon relay (WebSocket + E2EE) or direct TCP.
 
 This repo ships two things:
 
-* **Paseo plugin** (recommended) — UI + embedded MCP server. This README.
+* **Paseo plugin** (recommended) — UI + embedded MCP server. (This README is for the plugin. See below)
 * **Standalone MCP server** (`mcp/`) — the same server without the paseo plugin. See **[mcp/README.md](mcp/README.md)** for its standalone install, tool reference, and protocol details.
 
 ## Plugin
