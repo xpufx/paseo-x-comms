@@ -23,13 +23,13 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
+    "@getpaseo/client": "0.7.0-beta.3",
+    "@getpaseo/plugin": "0.7.0-beta.3",
+    "@getpaseo/protocol": "0.7.0-beta.3",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@getpaseo/client": "0.7.0-beta.3",
-    "@getpaseo/plugin": "0.7.0-beta.3",
-    "@getpaseo/protocol": "0.7.0-beta.3",
     "@tanstack/react-query": "^5.90.11",
     "@types/react": "~19.2.0",
     "react": "19.1.0",
