@@ -59,7 +59,6 @@ export function hostnameFor(daemon: string): string | null {
   return hostnames[daemon] ?? null;
 }
 
-const LOCAL_DIRECT = "local-direct";
 // Marker delimiting the block we append to the daemon's appendSystemPrompt.
 // Strip only removes our marked block so user-authored prompt text is preserved.
 const PROMPT_BLOCK_START = "<!-- paseo-x-comms-system-prompt -->";
@@ -96,63 +95,30 @@ function hasPromptBlock(prompt: string): boolean {
   return prompt.includes(PROMPT_BLOCK_START);
 }
 
-async function withLocalDaemon<T>(
-  fn: (client: any) => Promise<T>,
-): Promise<T> {
-  const entry = readRegistry(currentRegistryPath()).daemons.find(
-    (d) => d.name === LOCAL_DIRECT,
-  );
-  if (!entry) {
-    throw new Error(
-      `no '${LOCAL_DIRECT}' entry in the registry; add your local daemon's direct host (host:port) as '${LOCAL_DIRECT}' so the plugin can manage its system prompt`,
-    );
-  }
-  const { DaemonClient } = (0, eval)("require")("@getpaseo/client/internal/daemon-client");
-  const { url, e2ee } = peerUrl(entry.value);
-  const client = new DaemonClient({
-    url,
-    clientId: "paseo-x-comms-prompt-" + Date.now(),
-    clientType: "cli",
-    e2ee,
-    connectTimeoutMs: 15000,
-  });
-  try {
-    await client.connect();
-    return await fn(client);
-  } finally {
-    await client.close().catch(() => {});
-  }
-}
+type PaseoHandlerContext = { paseo: { config: { get: (requestId?: string) => Promise<{ config: Record<string, unknown> }>; patch: (patch: Record<string, unknown>, requestId?: string) => Promise<{ config: Record<string, unknown> }> } } };
 
-export async function handleAgentPromptGet() {
-  const prompt = await withLocalDaemon(async (client) => {
-    const res = await client.getDaemonConfig("agent-prompt-get");
-    return (res?.config?.appendSystemPrompt as string) ?? "";
-  });
+export async function handleAgentPromptGet(_input: unknown, ctx: PaseoHandlerContext) {
+  const res = await ctx.paseo.config.get();
+  const prompt = (res?.config?.appendSystemPrompt as string) ?? "";
   return { appendSystemPrompt: prompt, hasBlock: hasPromptBlock(prompt) };
 }
 
-export async function handleAgentPromptSet(input: { enabled: boolean }) {
+export async function handleAgentPromptSet(input: { enabled: boolean }, ctx: PaseoHandlerContext) {
   try {
-    const result = await withLocalDaemon(async (client) => {
-      const current = ((await client.getDaemonConfig("agent-prompt-set-read"))?.config?.appendSystemPrompt as string) ?? "";
-      let next: string;
-      if (input.enabled) {
-        if (hasPromptBlock(current)) {
-          next = current; // already present; leave as-is
-        } else {
-          const daemons = readRegistry(currentRegistryPath()).daemons
-            .filter((d) => d.name !== LOCAL_DIRECT)
-            .map((d) => ({ name: d.name, serverId: (d as any).serverId ?? null }));
-          next = (current.trim().length > 0 ? current + "\n\n" : "") + buildPromptBlock(daemons);
-        }
+    const current = ((await ctx.paseo.config.get())?.config?.appendSystemPrompt as string) ?? "";
+    let next: string;
+    if (input.enabled) {
+      if (hasPromptBlock(current)) {
+        next = current; // already present; leave as-is
       } else {
-        next = stripPromptBlock(current);
+        const daemons = readRegistry(currentRegistryPath()).daemons.map((d) => ({ name: d.name, serverId: (d as any).serverId ?? null }));
+        next = (current.trim().length > 0 ? current + "\n\n" : "") + buildPromptBlock(daemons);
       }
-      await client.patchDaemonConfig({ appendSystemPrompt: next });
-      return { appendSystemPrompt: next, hasBlock: hasPromptBlock(next) };
-    });
-    return { ...result, error: null };
+    } else {
+      next = stripPromptBlock(current);
+    }
+    await ctx.paseo.config.patch({ appendSystemPrompt: next });
+    return { appendSystemPrompt: next, hasBlock: hasPromptBlock(next), error: null };
   } catch (cause) {
     return {
       appendSystemPrompt: "",
@@ -463,32 +429,24 @@ export function daemonNameForServerId(serverId: string | null): string | null {
 }
 
 async function fetchPeerServerInfo(value: string): Promise<{ serverId: string; hostname: string | null } | null> {
-  try {
-    const { DaemonClient } = (0, eval)("require")("@getpaseo/client/internal/daemon-client");
-    const { url, e2ee } = peerUrl(value);
-    const client = new DaemonClient({
-      url,
-      clientId: "paseo-x-comms-ident-" + Date.now(),
-      clientType: "cli",
-      e2ee,
-      connectTimeoutMs: 8000,
-    });
-    const kill = setTimeout(() => { void client.close().catch(() => undefined); }, 15000);
+  const offer = parseOffer(value);
+  if (offer?.serverId) {
     try {
-      await client.connect();
-      // The daemon announces itself on connect (server_info): serverId + hostname,
-      // for any transport (relay, direct TCP, socket, pipe). This is the one
-      // deterministic source of the remote's real hostname.
-      const info = client.getLastServerInfoMessage();
-      if (info?.serverId) {
-        return { serverId: info.serverId, hostname: typeof info.hostname === "string" ? info.hostname : null };
-      }
-      const status = await client.getDaemonStatus({ timeout: 8000 });
-      return status.serverId ? { serverId: status.serverId, hostname: null } : null;
-    } finally {
-      clearTimeout(kill);
-      await client.close().catch(() => undefined);
+      const res = await runPaseoDumpJson(["daemon", "status", "--host", value, "--json"]);
+      const payload = res && typeof res === "object" ? (res as Record<string, unknown>) : null;
+      const hostname = payload && typeof payload.hostname === "string" ? (payload.hostname as string) : null;
+      return { serverId: offer.serverId, hostname };
+    } catch {
+      return { serverId: offer.serverId, hostname: null };
     }
+  }
+  try {
+    const res = await runPaseoDumpJson(["daemon", "status", "--host", value, "--json"]);
+    const payload = res && typeof res === "object" ? (res as Record<string, unknown>) : null;
+    const serverId = payload && typeof payload.serverId === "string" ? (payload.serverId as string) : null;
+    const hostname = payload && typeof payload.hostname === "string" ? (payload.hostname as string) : null;
+    if (serverId) return { serverId, hostname };
+    return null;
   } catch {
     return null;
   }
@@ -566,27 +524,6 @@ function parseOffer(value: string): {
   }
 }
 
-/**
- * Audience URL for a peer daemon: relay offers connect through the relay as a
- * client (E2EE via the daemon public key in the offer); direct hosts connect
- * straight over ws/wss. Same classification the CLI's --host applies.
- */
-function peerUrl(value: string): { url: string; e2ee: { enabled: boolean; daemonPublicKeyB64?: string } } {
-  const offer = parseOffer(value);
-  if (offer?.serverId && offer?.daemonPublicKeyB64 && offer?.relayEndpoint) {
-    const protocol = offer.useTls ? "wss" : "ws";
-    const url = `${protocol}://${offer.relayEndpoint}/ws?serverId=${encodeURIComponent(offer.serverId)}&role=client&v=2`;
-    return { url, e2ee: { enabled: true, daemonPublicKeyB64: offer.daemonPublicKeyB64 } };
-  }
-  // direct host: host:port, tcp://..., unix://... -> ws URL with the /ws path
-  // (the daemon's WebSocket endpoint), matching the CLI's resolveDaemonTarget.
-  const tcp = value.replace(/^tcp:\/\//, "").replace(/\?.*$/, "");
-  const hasScheme = /^ws:\/\/|^wss:\/\//.test(value) || /^unix:\/\//.test(value);
-  const base = hasScheme ? value : tcp;
-  const wsUrl = /^unix:\/\//.test(base) ? `ws+unix://${base.slice("unix://".length)}:/ws` : `ws://${base}/ws`;
-  return { url: wsUrl, e2ee: { enabled: false } };
-}
-
 function safe<T,>(raw: unknown, selector: (x: Record<string, unknown>) => T): T[] {
   return Array.isArray(raw) ? (raw as Record<string, unknown>[]).map(selector) : [];
 }
@@ -600,63 +537,71 @@ export async function handleDaemonDump(input: { daemon: string }) {
   if (!entry) {
     return { name: input.daemon, reached: false, error: `unknown daemon '${input.daemon}'`, serverId: null, hostname: null, version: null, desktopManaged: null, capabilities: null, features: null, listen: null, pid: null, nodePath: null, startedAt: null, relayEndpoints: null, relayEnabled: null, transport: null, agents: [], workspaces: [], projects: [], providers: [], providerCount: 0, permissions: [], schedules: [], terminals: [] };
   }
-  const { DaemonClient } = (0, eval)("require")("@getpaseo/client/internal/daemon-client");
-  const { url, e2ee } = peerUrl(entry.value);
-  const transport = e2ee.enabled ? "relay" : "direct";
-  const client = new DaemonClient({
-    url,
-    clientId: "paseo-x-comms-debug-" + Date.now(),
-    clientType: "cli",
-    e2ee,
-    connectTimeoutMs: 15000,
-  });
+  const offer = parseOffer(entry!.value);
+  const transport = offer ? "relay" : "direct";
+  const hostValue = entry!.value;
+  async function tryHost(args: string[]): Promise<unknown> {
+    try {
+      return await runPaseoDumpJson([...args, "--host", hostValue, "--json"]);
+    } catch {
+      return null;
+    }
+  }
   try {
-    await client.connect();
-    const info = client.getLastServerInfoMessage();
-    const [status, agentsRes, workspacesRes, projectsRes, sessionsRes, schedRes, termRes] = await Promise.all([
-      client.getDaemonStatus({ timeout: 15000 }).catch(() => null),
-      client.fetchAgents().catch(() => null),
-      client.fetchWorkspaces().catch(() => null),
-      client.listProjects().catch(() => null),
-      client.fetchRecentProviderSessions({ limit: 5 }).catch(() => null),
-      client.scheduleList().catch(() => null),
-      client.listTerminals().catch(() => null),
+    const [status, agentsRes, workspacesRes, projectsRes, schedRes, termRes] = await Promise.all([
+      tryHost(["daemon", "status"]),
+      tryHost(["ls", "--global"]),
+      tryHost(["workspace", "ls"]),
+      tryHost(["project", "ls"]),
+      tryHost(["schedule", "ls"]),
+      tryHost(["terminal", "ls"]),
     ]);
-    const statusPayload = status && (status as any).payload ? (status as any).payload : status;
-    // fetchAgents/fetchWorkspaces wrap results in { entries: [...] }
-    const agentsEntries = ((agentsRes as any)?.entries ?? []) as Record<string, unknown>[];
-    const workspacesEntries = ((workspacesRes as any)?.entries ?? []) as Record<string, unknown>[];
-    const projectsEntries = Array.isArray(projectsRes) ? (projectsRes as Record<string, unknown>[]) : [];
-    const sessionsEntries = ((sessionsRes as any)?.entries ?? []) as Record<string, unknown>[];
+    const statusPayload = status && typeof status === "object" && (status as any).data ? (status as any).data : status;
+    const resolvedPayload = statusPayload && typeof statusPayload === "object" ? (statusPayload as Record<string, unknown>) : null;
+    const agentsRaw = Array.isArray(agentsRes) ? agentsRes : Array.isArray((agentsRes as any)?.data) ? (agentsRes as any).data : [];
+    const workspacesRaw = Array.isArray(workspacesRes) ? workspacesRes : Array.isArray((workspacesRes as any)?.data) ? (workspacesRes as any).data : [];
+    const projectsRaw = Array.isArray(projectsRes) ? projectsRes : Array.isArray((projectsRes as any)?.data) ? (projectsRes as any).data : Array.isArray((projectsRes as any)?.projects) ? (projectsRes as any).projects : [];
+    const agentsEntries = (Array.isArray(agentsRaw) ? agentsRaw : []) as Record<string, unknown>[];
+    const workspacesEntries = (Array.isArray(workspacesRaw) ? workspacesRaw : []) as Record<string, unknown>[];
+    const projectsEntries = (Array.isArray(projectsRaw) ? projectsRaw : []) as Record<string, unknown>[];
     const schedEntries = Array.isArray((schedRes as any)?.schedules)
       ? ((schedRes as any)?.schedules ?? []) as Record<string, unknown>[]
-      : Array.isArray(schedRes) ? (schedRes as Record<string, unknown>[]) : [];
+      : Array.isArray((schedRes as any)?.data)
+        ? ((schedRes as any).data as Record<string, unknown>[])
+        : Array.isArray(schedRes) ? (schedRes as Record<string, unknown>[]) : [];
     const termEntries = Array.isArray((termRes as any)?.terminals)
       ? ((termRes as any)?.terminals ?? []) as Record<string, unknown>[]
-      : Array.isArray(termRes) ? (termRes as Record<string, unknown>[]) : [];
-    const providersFromStatus = safe((statusPayload as any)?.providers ?? [], (p) => ({
+      : Array.isArray((termRes as any)?.data)
+        ? ((termRes as any).data as Record<string, unknown>[])
+        : Array.isArray(termRes) ? (termRes as Record<string, unknown>[]) : [];
+    const providersFromStatus = safe((resolvedPayload as any)?.providers ?? (status as any)?.providers ?? [], (p) => ({
       provider: str(p.provider),
       available: (p as any)?.available === true,
       error: (p as any)?.error ?? null,
     }));
+    const serverId = str((resolvedPayload as any)?.serverId ?? offer?.serverId ?? "");
+    const hostname = str((resolvedPayload as any)?.hostname ?? "");
+    const version = str((resolvedPayload as any)?.daemonVersion ?? (resolvedPayload as any)?.version ?? "");
+    const reached = status !== null || agentsRes !== null || workspacesRes !== null;
+    if (!reached) throw new Error("all peer probes failed");
     return {
       name: input.daemon,
       reached: true,
       error: null,
-      serverId: str((info as any)?.serverId ?? (statusPayload as any)?.serverId ?? ""),
-      hostname: str((info as any)?.hostname ?? ""),
-      version: str((info as any)?.version ?? (statusPayload as any)?.version ?? ""),
-      desktopManaged: (info as any)?.desktopManaged ?? null,
-      capabilities: ((info as any)?.capabilities ?? null) as Record<string, unknown> | null,
-      features: ((info as any)?.features ?? null) as Record<string, boolean> | null,
-      listen: str((statusPayload as any)?.listen ?? ""),
-      pid: (statusPayload as any)?.pid ?? null,
-      nodePath: str((statusPayload as any)?.nodePath ?? ""),
-      startedAt: str((statusPayload as any)?.startedAt ?? ""),
-      relayEndpoints: (statusPayload as any)?.relay
-        ? [str((statusPayload as any)?.relay?.endpoint ?? ""), str((statusPayload as any)?.relay?.publicEndpoint ?? "")]
+      serverId,
+      hostname,
+      version,
+      desktopManaged: (resolvedPayload as any)?.desktopManaged ?? null,
+      capabilities: null,
+      features: null,
+      listen: str((resolvedPayload as any)?.listen ?? ""),
+      pid: (resolvedPayload as any)?.pid ?? null,
+      nodePath: str((resolvedPayload as any)?.daemonNode ?? (resolvedPayload as any)?.nodePath ?? ""),
+      startedAt: str((resolvedPayload as any)?.startedAt ?? ""),
+      relayEndpoints: (resolvedPayload as any)?.relay
+        ? [str((resolvedPayload as any)?.relay?.endpoint ?? ""), str((resolvedPayload as any)?.relay?.publicEndpoint ?? "")]
         : null,
-      relayEnabled: (statusPayload as any)?.relay?.enabled ?? null,
+      relayEnabled: (resolvedPayload as any)?.relay?.enabled ?? null,
       transport,
       agents: agentsEntries.map((a) => {
         const agent = (a as any)?.agent ?? a;
@@ -686,8 +631,6 @@ export async function handleDaemonDump(input: { daemon: string }) {
       })),
     };
   } catch (cause) {
-    return { name: input.daemon, reached: false, error: cause instanceof Error ? cause.message : String(cause), serverId: null, hostname: null, version: null, desktopManaged: null, capabilities: null, features: null, listen: null, pid: null, nodePath: null, startedAt: null, relayEndpoints: null, relayEnabled: null, transport: null, agents: [], workspaces: [], projects: [], providers: [], providerCount: 0, permissions: [], schedules: [], terminals: [] };
-  } finally {
-    await client.close().catch(() => undefined);
+    return { name: input.daemon, reached: false, error: cause instanceof Error ? cause.message : String(cause), serverId: offer?.serverId ?? null, hostname: null, version: null, desktopManaged: null, capabilities: null, features: null, listen: null, pid: null, nodePath: null, startedAt: null, relayEndpoints: null, relayEnabled: null, transport, agents: [], workspaces: [], projects: [], providers: [], providerCount: 0, permissions: [], schedules: [], terminals: [] };
   }
 }
