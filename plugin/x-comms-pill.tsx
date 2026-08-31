@@ -1,7 +1,9 @@
 import type { PaseoAgentListResult, PaseoAgentUpdate } from "@getpaseo/client";
 import { Icon, type PluginClientContext, type PluginComposerPillProps } from "@getpaseo/plugin";
+import { Modal } from "@getpaseo/plugin/react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Text } from "react-native";
+import { CrossDaemonConversation } from "./x-comms-conversation";
 
 function CrossDaemonPill(props: PluginComposerPillProps) {
   const { theme } = props;
@@ -20,32 +22,49 @@ function CrossDaemonPill(props: PluginComposerPillProps) {
 }
 
 /**
- * One composer pill per agent, opening that agent's x-comms conversation in the
- * registered agent panel (id "x-comms") via openPanel. A pill-anchored Modal
- * is the ideal UX, but @getpaseo/plugin/react-native (Modal) is not importable
- * from plugin client code until the in-app-surface PR ships in a released
- * @getpaseo/plugin; openPanel is the supported path today.
+ * One composer pill per agent. Tapping the pill opens that agent's x-comms
+ * conversation in a Modal anchored to (and hosted by) the pill's own component
+ * tree, via local state — so it opens connected to the pill and closes with it.
+ * Pills are seeded from the agent list and follow the agent update stream so they
+ * appear and disappear as agents come and go.
  */
 export function contributeClient(client: PluginClientContext) {
   const pills = new Map<string, () => void>();
 
   function addPill(agentId: string, workspaceId: string) {
     if (pills.has(agentId)) return;
-    pills.set(
+    let setOpen: ((open: boolean) => void) | null = null;
+    const remove = client.addComposerPill({
+      id: "x-comms",
+      title: "X-comms",
+      workspaceId,
       agentId,
-      client.addComposerPill({
-        id: "x-comms",
-        title: "X-comms",
-        workspaceId,
-        agentId,
-        Component: ({ theme }) => (
-          <CrossDaemonPill {...{ theme, agentId, workspaceId, host: undefined as never, layout: undefined as never }} />
-        ),
-        onPress() {
-          client.openPanel("x-comms", { workspaceId, agentId });
-        },
-      }),
-    );
+      Component: ({ theme }) => {
+        const [isOpen, setIsOpen] = useState(false);
+        setOpen = setIsOpen;
+        return (
+          <>
+            <CrossDaemonPill {...{ theme, agentId, workspaceId, host: undefined as never, layout: undefined as never }} />
+            <Modal
+              title="X-comms"
+              icon={<Icon name="PhoneOutgoing" />}
+              open={isOpen}
+              onOpenChange={(open: boolean) => {
+                if (!open) setIsOpen(false);
+              }}
+            >
+              <Modal.Content>
+                <CrossDaemonConversation theme={theme} agentId={agentId} />
+              </Modal.Content>
+            </Modal>
+          </>
+        );
+      },
+      onPress() {
+        setOpen?.(true);
+      },
+    });
+    pills.set(agentId, remove);
   }
 
   function removePill(agentId: string) {
