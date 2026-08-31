@@ -4,10 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Clipboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { conversationSendRpc, introspectAgentsRpc } from "./registry.shared";
-import { deriveConversations, type ConversationPartner } from "./conversations";
+import { deriveConversationThreads, deriveConversations, type ConversationMessage, type ConversationPartner, type ConversationThread } from "./conversations";
 
 const draftCache = new Map<string, string>();
 const targetCache = new Map<string, ConversationPartner | null>();
+const sentCache = new Map<string, Map<string, ConversationMessage[]>>();
 
 export function CrossDaemonConversation({
   theme,
@@ -26,6 +27,11 @@ export function CrossDaemonConversation({
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const queryClient = useQueryClient();
+  const threads = useQuery({
+    queryKey: ["x-comms-threads", agentId],
+    queryFn: () => deriveConversationThreads(paseo, agentId),
+    refetchOnMount: "always",
+  });
   const conversations = useQuery({
     queryKey: ["x-comms-conversations", agentId],
     queryFn: () => deriveConversations(paseo, agentId),
@@ -35,6 +41,7 @@ export function CrossDaemonConversation({
     const unsub = paseo.agents.subscribe((update) => {
       if (update.kind === "upsert" && update.agent.id === agentId) {
         void queryClient.invalidateQueries({ queryKey: ["x-comms-conversations", agentId] });
+        void queryClient.invalidateQueries({ queryKey: ["x-comms-threads", agentId] });
       }
     });
     return unsub;
@@ -52,6 +59,7 @@ export function CrossDaemonConversation({
     } catch { return null; }
   })();
   const [lastSent, setLastSent] = useState<{ at: string; to: string } | null>(null);
+  const [sentTick, setSentTick] = useState(0);
   const send = useMutation({
     mutationFn: () =>
       callSend({
@@ -62,10 +70,25 @@ export function CrossDaemonConversation({
         fromAgentName: selfName,
       }),
     onSuccess: (data) => {
-      if (data.ok) {
-        setLastSent({ at: new Date().toLocaleTimeString(), to: target ? `${target.counterparty.agentName ?? target.counterparty.agentId} @ ${target.counterparty.daemon ?? target.counterparty.daemonServerId}` : "" });
+      if (data.ok && target) {
+        const now = new Date().toISOString();
+        const msg: ConversationMessage = {
+          id: `sent-${now}-${Math.random().toString(36).slice(2, 6)}`,
+          body: draft,
+          sentAt: now,
+          isIncoming: false,
+          senderName: "You",
+          daemon: target.counterparty.daemon ?? target.counterparty.daemonServerId,
+        };
+        const byAgent = sentCache.get(agentId) ?? new Map<string, ConversationMessage[]>();
+        const list = byAgent.get(target.conversationId) ?? [];
+        byAgent.set(target.conversationId, [...list, msg]);
+        sentCache.set(agentId, byAgent);
+        setSentTick((x) => x + 1);
+        setLastSent({ at: new Date().toLocaleTimeString(), to: `${target.counterparty.agentName ?? target.counterparty.agentId} @ ${target.counterparty.daemon ?? target.counterparty.daemonServerId}` });
         setDraftCached("");
         void queryClient.invalidateQueries({ queryKey: ["x-comms-conversations", agentId] });
+        void queryClient.invalidateQueries({ queryKey: ["x-comms-threads", agentId] });
       }
       onSent?.();
     },
@@ -135,6 +158,25 @@ export function CrossDaemonConversation({
         <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12, marginBottom: 8 }}>
           To: {target.counterparty.agentName ?? target.counterparty.agentId} on {target.counterparty.daemon ?? target.counterparty.daemonServerId}
         </Text>
+      ) : null}
+      {target ? (
+        (() => {
+          const thread = threads.data?.find((t: ConversationThread) => t.partner.conversationId === target.conversationId);
+          const sent = sentCache.get(agentId)?.get(target.conversationId) ?? [];
+          const incoming = thread?.messages ?? [];
+          const all = [...incoming, ...sent].sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
+          if (all.length === 0) return <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12, marginBottom: 8, fontStyle: "italic" as const }}>No messages yet — send the first.</Text>;
+          return (
+            <ScrollView style={{ maxHeight: 180, marginBottom: 8, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 6, padding: 6 }}>
+              {all.map((m) => (
+                <View key={m.id} style={{ marginBottom: 6, alignSelf: m.isIncoming ? "flex-start" as const : "flex-end" as const, maxWidth: "85%", backgroundColor: m.isIncoming ? theme.colors.surface1 : theme.colors.accent + "20", borderRadius: 6, padding: 6, borderWidth: 1, borderColor: m.isIncoming ? theme.colors.border : theme.colors.accent }}>
+                  <Text style={{ color: theme.colors.foregroundMuted, fontSize: 10 }}>{m.isIncoming ? m.senderName : "You"} · {new Date(m.sentAt).toLocaleTimeString()}</Text>
+                  <Text style={{ color: theme.colors.foreground, fontSize: 13 }}>{m.body}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          );
+        })()
       ) : null}
 
       <TextInput
