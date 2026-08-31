@@ -75,7 +75,7 @@ required.
 2. On **this** host, write the registry file with a name for that daemon
    (see `paseo-x-comms.example.json` for the format):
 
-   `~/.paseo/paseo-x-comms.json`:
+   `~/.paseo/paseo-x-comms/registry.json`:
 
    ```json
    { "hsi": "https://app.paseo.sh/#offer=<b64>" }
@@ -167,7 +167,7 @@ ports and `unix://` also work but are not documented in the CLI help.)
 
 ## Security
 
-The registry (default `~/.paseo/paseo-x-comms.json`) holds live
+The registry (default `~/.paseo/paseo-x-comms/registry.json`) holds live
 pairing offers (serverId, daemon public keys, relay endpoints): it is
 **credentials**. Never publish it. Configure it as a plain JSON file yourself
 (see the example); do not paste offers into agent contexts and do not share
@@ -177,9 +177,9 @@ the file.
 
 | Env var | Default | Purpose |
 |---------|---------|---------|
-| `PASEO_CROSS_DAEMON_COMMS_REMOTES` | `~/.paseo/paseo-x-comms.json` | registry file path |
-| `PASEO_CROSS_DAEMON_COMMS_PASEO` | `paseo` | paseo binary |
-| `PASEO_CROSS_DAEMON_COMMS_TIMEOUT_MS` | `120000` | per paseo call timeout |
+| `PASEO_X_COMMS_REMOTES` | `~/.paseo/paseo-x-comms/registry.json` | registry file path |
+| `PASEO_X_COMMS_PASEO` | `paseo` | paseo binary |
+| `PASEO_X_COMMS_TIMEOUT_MS` | `120000` | per paseo call timeout |
 
 ## Registering with clients
 
@@ -197,7 +197,7 @@ enabled for this to be picked up):
       "command": "node",
       "args": ["/path/to/paseo-x-comms.mjs"],
       "type": "stdio",
-      "env": { "PASEO_CROSS_DAEMON_COMMS_REMOTES": "/path/to/paseo-x-comms.json" }
+      "env": { "PASEO_X_COMMS_REMOTES": "/path/to/paseo-x-comms.json" }
     }
   }
 }
@@ -213,7 +213,7 @@ opencode (`~/.config/opencode/opencode.jsonc`): note the key is `environment`
       "type": "local",
       "command": ["node", "/path/to/paseo-x-comms.mjs"],
       "enabled": true,
-      "environment": { "PASEO_CROSS_DAEMON_COMMS_REMOTES": "/path/to/paseo-x-comms.json" }
+      "environment": { "PASEO_X_COMMS_REMOTES": "/path/to/paseo-x-comms.json" }
     }
   }
 }

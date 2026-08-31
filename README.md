@@ -1,13 +1,13 @@
 # paseo-x-comms
 
-> Tracks the latest paseo beta (`@getpaseo/* 0.7.0-beta.2`). Expect breaking changes between versions.
+> Tracks the latest paseo beta (`@getpaseo/* 0.7.0-beta.3`). Expect breaking changes between versions.
 
 [paseo](https://paseo.sh) is an agent orchestrator: AI coding agents run on paseo daemons, each managing workspaces, tools, and permissions. **paseo-x-comms** lets agents on one daemon talk to agents on another — even across hosts — via the daemon relay (WebSocket + E2EE) or direct TCP.
 
 This repo ships two things:
 
 * **Paseo plugin** (recommended) — UI + embedded MCP server. This README.
-* **Standalone MCP server** (`mcp/`) — the same server without UI, for pi/opencode or any MCP client. See **[mcp/README.md](mcp/README.md)** for its standalone install, tool reference, and protocol details.
+* **Standalone MCP server** (`mcp/`) — the same server without the paseo plugin. See **[mcp/README.md](mcp/README.md)** for its standalone install, tool reference, and protocol details.
 
 ## Plugin
 
@@ -38,11 +38,11 @@ paseo plugin update paseo-x-comms-plugin
 
 ### Configure daemons
 
-The registry is at `~/.paseo/paseo-x-comms/registry.json` (migrated automatically from the old `~/.paseo/paseo-x-comms.json`):
+The registry is at `~/.paseo/paseo-x-comms/registry.json`:
 
 ```json
 {
-  "hsi": "https://app.paseo.sh/#offer=<b64>",
+  "home": "https://app.paseo.sh/#offer=<b64>",
   "office": "10.0.0.5:6767"
 }
 ```
@@ -95,13 +95,13 @@ Tools (via the embedded server) are `x_comms_list_daemons`, `x_comms_add_daemon`
 
 ## Standalone MCP
 
-If you don't use the plugin (e.g. pi/opencode without paseo UI), run the server directly:
+If you don't use the plugin, run the server directly:
 
 ```sh
 npm install -g @xpufx/paseo-x-comms
 ```
 
-Requires `paseo` CLI on PATH, Node ≥ 18. Full instructions, env overrides (`PASEO_CROSS_DAEMON_COMMS_*`), and client registration examples (pi `mcp.json` vs opencode `opencode.jsonc`) are in **[mcp/README.md](mcp/README.md)**.
+Requires `paseo` CLI on PATH, Node ≥ 18. Full instructions, env overrides (`PASEO_X_COMMS_*`), and client registration examples (pi `mcp.json` vs opencode `opencode.jsonc`) are in **[mcp/README.md](mcp/README.md)**.
 
 ## Development
 
@@ -111,7 +111,7 @@ npm run typecheck   # tsc --noEmit
 npm test            # node --test mcp/test/protocol.test.mjs (hermetic, fake paseo + temp registry)
 ```
 
-No live daemons, no real `~/.paseo/paseo-x-comms/registry.json` touched in tests (`PASEO_CROSS_DAEMON_COMMS_REMOTES` / `PASEO_CROSS_DAEMON_COMMS_PASEO` overrides).
+No live daemons, no real `~/.paseo/paseo-x-comms/registry.json` touched in tests (`PASEO_X_COMMS_REMOTES` / `PASEO_X_COMMS_PASEO` overrides).
 
 ## License
 

@@ -17,13 +17,13 @@
 // only implements the tool logic.
 //
 // Env overrides (testability / power users):
-//   PASEO_CROSS_DAEMON_COMMS_REMOTES    registry file path
+//   PASEO_X_COMMS_REMOTES    registry file path
 //                                     (default ~/.paseo/paseo-x-comms/registry.json)
-//   PASEO_CROSS_DAEMON_COMMS_PASEO      paseo binary (default "paseo")
-//   PASEO_CROSS_DAEMON_COMMS_TIMEOUT_MS per paseo call timeout (default 120000)
+//   PASEO_X_COMMS_PASEO      paseo binary (default "paseo")
+//   PASEO_X_COMMS_TIMEOUT_MS per paseo call timeout (default 120000)
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir, hostname } from "node:os";
 import { join, dirname } from "node:path";
 import { execFile } from "node:child_process";
@@ -34,20 +34,11 @@ import { z } from "zod";
 const REMOTES_DIR = join(homedir(), ".paseo", "paseo-x-comms");
 
 const REMOTES_FILE =
-  process.env.PASEO_CROSS_DAEMON_COMMS_REMOTES ||
+  process.env.PASEO_X_COMMS_REMOTES ||
   join(REMOTES_DIR, "registry.json");
 
-// One-time migration: move the registry from the old ~/.paseo root location into
-// the namespaced state dir. Forward-only; never a fallback path.
-if (
-  !existsSync(REMOTES_FILE) &&
-  existsSync(join(homedir(), ".paseo", "paseo-x-comms.json"))
-) {
-  mkdirSync(REMOTES_DIR, { recursive: true });
-  renameSync(join(homedir(), ".paseo", "paseo-x-comms.json"), REMOTES_FILE);
-}
-const PASEO = process.env.PASEO_CROSS_DAEMON_COMMS_PASEO || "paseo";
-const DEFAULT_TIMEOUT_MS = Number(process.env.PASEO_CROSS_DAEMON_COMMS_TIMEOUT_MS || 120000);
+const PASEO = process.env.PASEO_X_COMMS_PASEO || "paseo";
+const DEFAULT_TIMEOUT_MS = Number(process.env.PASEO_X_COMMS_TIMEOUT_MS || 120000);
 
 // daemons registry
 

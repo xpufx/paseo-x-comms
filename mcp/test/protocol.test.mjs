@@ -32,7 +32,7 @@ const PREFIX = "x_comms_";
 function baseEnv(extra = {}) {
   return {
     ...process.env,
-    PASEO_CROSS_DAEMON_COMMS_PASEO: FAKE,
+    PASEO_X_COMMS_PASEO: FAKE,
     PASEO_AGENT_ID: "agent-test-1",
     PASEO_AGENT_CWD: "/tmp/test-cwd",
     ...extra,
@@ -50,7 +50,7 @@ async function startClient(extraEnv = {}, remotesFile = tempRemotes()) {
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [SERVER],
-    env: baseEnv({ PASEO_CROSS_DAEMON_COMMS_REMOTES: remotesFile, ...extraEnv }),
+    env: baseEnv({ PASEO_X_COMMS_REMOTES: remotesFile, ...extraEnv }),
     stderr: "inherit",
   });
   const client = new Client({ name: "paseo-x-comms-test", version: "1.0.0" });
@@ -357,7 +357,7 @@ test("deny_permission supports --all and message", async () => {
 
 function startRawServer(remotesFile, extraEnv = {}) {
   const child = spawn(process.execPath, [SERVER], {
-    env: baseEnv({ PASEO_CROSS_DAEMON_COMMS_REMOTES: remotesFile, ...extraEnv }),
+    env: baseEnv({ PASEO_X_COMMS_REMOTES: remotesFile, ...extraEnv }),
     stdio: ["pipe", "pipe", "inherit"],
   });
   const rl = createInterface({ input: child.stdout, crlfDelay: Infinity });

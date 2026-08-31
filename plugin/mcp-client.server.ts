@@ -20,7 +20,7 @@ export class McpStdioClient {
     });
     this.child.stderr?.on("data", (chunk) => {
       // Server diagnostics on stderr; useful for debugging without dying.
-      if (process.env.PASEO_CROSS_DAEMON_COMMS_DEBUG) {
+      if (process.env.PASEO_X_COMMS_DEBUG) {
         console.error(`[mcp-client] ${String(chunk)}`);
       }
     });

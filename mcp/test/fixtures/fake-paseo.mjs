@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Hermetic stand-in for the paseo CLI. Only used by tests via PASEO_CROSS_DAEMON_COMMS_PASEO.
+// Hermetic stand-in for the paseo CLI. Only used by tests via PASEO_X_COMMS_PASEO.
 // Never called by the real tool outside of tests.
 //
 // Test controls via env:
