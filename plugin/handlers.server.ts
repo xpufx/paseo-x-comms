@@ -317,7 +317,7 @@ export async function handleServerCheck() {
 function extractServerVersion(serverPath: string): string | null {
   try {
     const source = readFileSync(serverPath, "utf8");
-    const match = source.match(/const VERSION = "([^"]+)"/);
+    const match = source.match(/\bVERSION\s*=\s*"([^"]+)"/);
     return match ? match[1] : null;
   } catch {
     return null;
