@@ -6,6 +6,9 @@ import { ActivityIndicator, Clipboard, Pressable, ScrollView, Text, TextInput, V
 import { conversationSendRpc, introspectAgentsRpc } from "./registry.shared";
 import { deriveConversations, type ConversationPartner } from "./conversations";
 
+const draftCache = new Map<string, string>();
+const targetCache = new Map<string, ConversationPartner | null>();
+
 export function CrossDaemonConversation({
   theme,
   agentId,
@@ -18,8 +21,8 @@ export function CrossDaemonConversation({
   const paseo = usePaseo();
   const callSend = useRpc(conversationSendRpc);
   const callIntrospect = useRpc(introspectAgentsRpc);
-  const [draft, setDraft] = useState("");
-  const [target, setTarget] = useState<ConversationPartner | null>(null);
+  const [draft, setDraft] = useState(() => draftCache.get(agentId) ?? "");
+  const [target, setTarget] = useState<ConversationPartner | null>(() => targetCache.get(agentId) ?? null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const conversations = useQuery({
@@ -42,21 +45,29 @@ export function CrossDaemonConversation({
         fromAgentName: undefined,
       }),
     onSuccess: () => {
-      setDraft("");
+      setDraftCached("");
       onSent?.();
     },
   });
 
-  const pickTarget = useCallback((c: ConversationPartner) => setTarget(c), []);
+  const setDraftCached = useCallback((v: string) => {
+    draftCache.set(agentId, v);
+    setDraft(v);
+  }, [agentId]);
+  const setTargetCached = useCallback((c: ConversationPartner | null) => {
+    targetCache.set(agentId, c);
+    setTarget(c);
+  }, [agentId]);
+  const pickTarget = useCallback((c: ConversationPartner) => setTargetCached(c), [setTargetCached]);
   const pickPeer = useCallback((daemon: string, a: { agentId: string; shortId: string; name: string }) => {
-    setTarget({
+    setTargetCached({
       conversationId: `${daemon}/${a.agentId}`,
       counterparty: { daemon, agentId: a.agentId, agentName: a.name, daemonServerId: null },
       lastActivity: new Date().toISOString(),
       messageCount: 0,
     });
     setPickerOpen(false);
-  }, []);
+  }, [setTargetCached]);
 
   return (
     <View style={{ padding: 12, flex: 1 }}>
@@ -107,7 +118,7 @@ export function CrossDaemonConversation({
 
       <TextInput
         value={draft}
-        onChangeText={setDraft}
+        onChangeText={setDraftCached}
         placeholder="Message the selected counterparty…"
         placeholderTextColor={theme.colors.foregroundMuted}
         style={{

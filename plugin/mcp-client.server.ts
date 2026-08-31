@@ -19,10 +19,18 @@ export class McpStdioClient {
       stdio: ["pipe", "pipe", "pipe"],
     });
     this.child.stderr?.on("data", (chunk) => {
-      // Server diagnostics on stderr; useful for debugging without dying.
       if (process.env.PASEO_X_COMMS_DEBUG) {
         console.error(`[mcp-client] ${String(chunk)}`);
       }
+    });
+    this.child.on("close", (code) => {
+      const err = new Error(`mcp server exited with code ${code ?? "null"}`);
+      for (const pending of this.pending.values()) pending.reject(err);
+      this.pending.clear();
+    });
+    this.child.on("error", (err) => {
+      for (const pending of this.pending.values()) pending.reject(err);
+      this.pending.clear();
     });
     const stdout = this.child.stdout;
     if (!stdout) throw new Error("server stdout is unavailable");
@@ -55,7 +63,14 @@ export class McpStdioClient {
   private request(method: string, params: Record<string, unknown>): Promise<unknown> {
     const id = randomUUID();
     return new Promise<unknown>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const timeout = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`mcp request ${method} timed out`));
+      }, 15000);
+      this.pending.set(id, {
+        resolve: (v) => { clearTimeout(timeout); resolve(v); },
+        reject: (e) => { clearTimeout(timeout); reject(e); },
+      });
       this.send({ jsonrpc: "2.0", id, method, params });
     });
   }
