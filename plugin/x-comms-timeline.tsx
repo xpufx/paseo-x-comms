@@ -104,9 +104,26 @@ export function parseEnvelope(text: string): { envelope: CrossDaemonEnvelope; bo
 }
 
 const ItemSchema = z.object({
-  envelope: EnvelopeSchema,
+  envelope: z.union([EnvelopeSchema, EnvelopeSchemaV2, z.object({}).passthrough()]),
   body: z.string(),
-});
+}).passthrough();
+
+function normalizeForDisplay(envelope: unknown): CrossDaemonEnvelope | null {
+  const n = normalizeEnvelope(envelope);
+  if (n) return n;
+  if (envelope && typeof envelope === "object") {
+    const r = envelope as Record<string, unknown>;
+    if ("xComms" in r) {
+      const v = EnvelopeSchema.safeParse({ xComms: (r as Record<string, unknown>).xComms });
+      if (v.success) return v.data;
+    }
+    if ("paseoCrossDaemonComms" in r) {
+      const v = EnvelopeSchemaV2.safeParse({ paseoCrossDaemonComms: (r as Record<string, unknown>).paseoCrossDaemonComms });
+      if (v.success) return { xComms: v.data.paseoCrossDaemonComms } as CrossDaemonEnvelope;
+    }
+  }
+  return null;
+}
 
 function senderLabel(env: CrossDaemonEnvelope): string {
   const s = env.xComms.sender;
@@ -116,7 +133,8 @@ function senderLabel(env: CrossDaemonEnvelope): string {
 }
 
 function CrossDaemonMessage({ theme, item }: PluginTimelineItemProps<z.infer<typeof ItemSchema>>) {
-  const label = useMemo(() => senderLabel(item.data.envelope), [item.data.envelope]);
+  const envelope = useMemo(() => normalizeForDisplay(item.data.envelope) ?? (item.data.envelope as CrossDaemonEnvelope), [item.data.envelope]);
+  const label = useMemo(() => (envelope ? senderLabel(envelope) : "unknown"), [envelope]);
   return (
     <View style={{ paddingVertical: 4 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
