@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Text, View } from "react-native";
 
 const META_PREFIX = "[x-comms] ";
+const META_PREFIX_V2 = "[paseo-cross-daemon-comms meta v2] ";
 
 const EnvelopeSchema = z.object({
   xComms: z.object({
@@ -24,7 +25,58 @@ const EnvelopeSchema = z.object({
   }),
 });
 
+const EnvelopeSchemaV2 = z.object({
+  paseoCrossDaemonComms: z.object({
+    version: z.number(),
+    sender: z.object({
+      agentId: z.string().nullable(),
+      agentName: z.string().nullable(),
+      host: z.string().nullable(),
+      daemonServerId: z.string().nullable(),
+      cwd: z.string().nullable(),
+    }),
+    target: z.object({
+      daemon: z.string().nullable(),
+      agentId: z.string().nullable(),
+    }),
+    sentAt: z.string(),
+  }),
+});
+
 export type CrossDaemonEnvelope = z.infer<typeof EnvelopeSchema>;
+type CrossDaemonEnvelopeV2 = z.infer<typeof EnvelopeSchemaV2>;
+export type AnyEnvelope = CrossDaemonEnvelope | { xComms: CrossDaemonEnvelopeV2["paseoCrossDaemonComms"] };
+
+function normalizeEnvelope(raw: unknown): CrossDaemonEnvelope | null {
+  const v3 = EnvelopeSchema.safeParse(raw);
+  if (v3.success) return v3.data;
+  const v2 = EnvelopeSchemaV2.safeParse(raw);
+  if (v2.success) return { xComms: v2.data.paseoCrossDaemonComms } as CrossDaemonEnvelope;
+  if (raw && typeof raw === "object" && "paseoCrossDaemonComms" in (raw as Record<string, unknown>)) {
+    const p = (raw as Record<string, unknown>).paseoCrossDaemonComms as Record<string, unknown>;
+    const sender = (p.sender ?? {}) as Record<string, unknown>;
+    const target = (p.target ?? {}) as Record<string, unknown>;
+    return {
+      xComms: {
+        version: typeof p.version === "number" ? p.version : 2,
+        type: "x-comms.incoming_message",
+        sender: {
+          agentId: (sender.agentId as string) ?? null,
+          agentName: (sender.agentName as string) ?? null,
+          host: (sender.host as string) ?? null,
+          daemonServerId: (sender.daemonServerId as string) ?? null,
+          cwd: (sender.cwd as string) ?? null,
+        },
+        target: {
+          daemon: (target.daemon as string) ?? null,
+          agentId: (target.agentId as string) ?? null,
+        },
+        sentAt: (p.sentAt as string) ?? new Date().toISOString(),
+      },
+    };
+  }
+  return null;
+}
 
 /**
  * Splits a message body into its x-comms envelope (if present) and the
@@ -32,17 +84,23 @@ export type CrossDaemonEnvelope = z.infer<typeof EnvelopeSchema>;
  * every x-comms message; its mere presence is the signal we render on.
  */
 export function parseEnvelope(text: string): { envelope: CrossDaemonEnvelope; body: string } | null {
-  if (!text.startsWith(META_PREFIX)) return null;
-  const rest = text.slice(META_PREFIX.length).trimStart();
-  // The server stamps `<prefix> <json>\n\n<body>`: the envelope JSON is
-  // single-line, then a blank line separates it from the human-visible text.
-  // Split on the first blank line so JSON.parse only sees the envelope.
+  let prefixLen = -1;
+  if (text.startsWith(META_PREFIX)) prefixLen = META_PREFIX.length;
+  else if (text.startsWith(META_PREFIX_V2)) prefixLen = META_PREFIX_V2.length;
+  else return null;
+  const rest = text.slice(prefixLen).trimStart();
   const sep = rest.indexOf("\n\n");
   const json = sep === -1 ? rest : rest.slice(0, sep);
   const body = sep === -1 ? "" : rest.slice(sep + 2).trim();
-  const parsed = EnvelopeSchema.safeParse(JSON.parse(json));
-  if (!parsed.success) return null;
-  return { envelope: parsed.data, body };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  const env = normalizeEnvelope(raw);
+  if (!env) return null;
+  return { envelope: env, body };
 }
 
 const ItemSchema = z.object({
