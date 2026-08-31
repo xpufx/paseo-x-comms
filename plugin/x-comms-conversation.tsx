@@ -51,6 +51,7 @@ export function CrossDaemonConversation({
       return snap?.title ?? null;
     } catch { return null; }
   })();
+  const [lastSent, setLastSent] = useState<{ at: string; to: string } | null>(null);
   const send = useMutation({
     mutationFn: () =>
       callSend({
@@ -60,8 +61,12 @@ export function CrossDaemonConversation({
         fromAgentId: agentId,
         fromAgentName: selfName,
       }),
-    onSuccess: () => {
-      setDraftCached("");
+    onSuccess: (data) => {
+      if (data.ok) {
+        setLastSent({ at: new Date().toLocaleTimeString(), to: target ? `${target.counterparty.agentName ?? target.counterparty.agentId} @ ${target.counterparty.daemon ?? target.counterparty.daemonServerId}` : "" });
+        setDraftCached("");
+        void queryClient.invalidateQueries({ queryKey: ["x-comms-conversations", agentId] });
+      }
       onSent?.();
     },
   });
@@ -160,6 +165,22 @@ export function CrossDaemonConversation({
           {send.isPending ? "Sending…" : "Send"}
         </Text>
       </Pressable>
+      {send.isSuccess && send.data?.ok ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+          <Text style={{ color: theme.colors.statusSuccess, fontSize: 12, flexShrink: 1 }}>
+            ✓ Sent to {lastSent?.to ?? target?.counterparty.agentName ?? target?.counterparty.agentId} at {lastSent?.at ?? ""}
+          </Text>
+          <Pressable
+            onPress={() => {
+              setLastSent(null);
+              send.reset();
+            }}
+            hitSlop={10}
+          >
+            <Text style={{ color: theme.colors.accent, fontSize: 12, paddingHorizontal: 6 }}>Dismiss</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {send.error ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
           <Text style={{ color: theme.colors.statusDanger, fontSize: 12, flexShrink: 1 }}>{String(send.error)}</Text>
