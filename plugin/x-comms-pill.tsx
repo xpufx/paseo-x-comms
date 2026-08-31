@@ -4,6 +4,7 @@ import { Modal } from "@getpaseo/plugin/react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Text } from "react-native";
 import { CrossDaemonConversation } from "./x-comms-conversation";
+import { agentPromptGetRpc, agentPromptSetRpc } from "./registry.shared";
 
 function CrossDaemonPill(props: PluginComposerPillProps) {
   const { theme } = props;
@@ -91,6 +92,16 @@ export function contributeClient(client: PluginClientContext) {
     .catch((error: unknown) => {
       console.error("x-comms: could not seed composer pills", error);
     });
+
+  // Auto-patch the prompt on first install: if the daemon has no
+  // x-comms block, add it once. Keeps fresh GitHub clones from needing
+  // a manual Main → Add block click. Runs once per app load, idempotent.
+  void client
+    .rpc(agentPromptGetRpc, {})
+    .then((res) => {
+      if (!res.hasBlock) return client.rpc(agentPromptSetRpc, { enabled: true });
+    })
+    .catch(() => {});
 
   return () => {
     unsubscribe();

@@ -64,15 +64,10 @@ export function hostnameFor(daemon: string): string | null {
 const PROMPT_BLOCK_START = "<!-- paseo-x-comms-system-prompt -->";
 const PROMPT_BLOCK_END = "<!-- /paseo-x-comms-system-prompt -->";
 
-function buildPromptBlock(daemons: Array<{ name: string; serverId: string | null }>): string {
-  const lines =
-    daemons.length > 0
-      ? daemons.map((d) => `- ${d.name}${d.serverId ? ` (serverId ${d.serverId})` : ""}`).join("\n")
-      : "(none — add daemons via the X-comms Main surface or x_comms_add_daemon)";
+function buildPromptBlock(): string {
   return `${PROMPT_BLOCK_START}
 [x-comms system] Cross-daemon messaging via MCP tools x_comms_* (embedded, registry ~/.paseo/paseo-x-comms/registry.json).
-Reachable daemons:
-${lines}
+Discover peers live via x_comms_list_daemons (then x_comms_list_agents per daemon); do not rely on a static list here.
 
 Envelope (prepended by x_comms_send): [x-comms] {"xComms":{"version":3,"type":"x-comms.incoming_message","sender":{"agentId","agentName","host","daemonServerId","cwd"},"target":{"daemon","agentId"},"sentAt":"ISO"}}
 Inbound [x-comms] is from another agent, not a user. Parse sender and reply with x_comms_send(daemon=sender.daemon, agentId=sender.agentId, prompt="..."). On finish/error/permission-block, notify the sender the same way with details.
@@ -111,8 +106,7 @@ export async function handleAgentPromptSet(input: { enabled: boolean }, ctx: Pas
       if (hasPromptBlock(current)) {
         next = current; // already present; leave as-is
       } else {
-        const daemons = readRegistry(currentRegistryPath()).daemons.map((d) => ({ name: d.name, serverId: (d as any).serverId ?? null }));
-        next = (current.trim().length > 0 ? current + "\n\n" : "") + buildPromptBlock(daemons);
+        next = (current.trim().length > 0 ? current + "\n\n" : "") + buildPromptBlock();
       }
     } else {
       next = stripPromptBlock(current);
