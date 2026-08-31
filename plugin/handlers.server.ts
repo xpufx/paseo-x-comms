@@ -107,7 +107,7 @@ async function withLocalDaemon<T>(
       `no '${LOCAL_DIRECT}' entry in the registry; add your local daemon's direct host (host:port) as '${LOCAL_DIRECT}' so the plugin can manage its system prompt`,
     );
   }
-  const { DaemonClient } = await import("@getpaseo/client/internal/daemon-client");
+  const { DaemonClient } = (0, eval)("require")("@getpaseo/client/internal/daemon-client");
   const { url, e2ee } = peerUrl(entry.value);
   const client = new DaemonClient({
     url,
@@ -464,7 +464,7 @@ export function daemonNameForServerId(serverId: string | null): string | null {
 
 async function fetchPeerServerInfo(value: string): Promise<{ serverId: string; hostname: string | null } | null> {
   try {
-    const { DaemonClient } = await import("@getpaseo/client/internal/daemon-client");
+    const { DaemonClient } = (0, eval)("require")("@getpaseo/client/internal/daemon-client");
     const { url, e2ee } = peerUrl(value);
     const client = new DaemonClient({
       url,
@@ -600,7 +600,7 @@ export async function handleDaemonDump(input: { daemon: string }) {
   if (!entry) {
     return { name: input.daemon, reached: false, error: `unknown daemon '${input.daemon}'`, serverId: null, hostname: null, version: null, desktopManaged: null, capabilities: null, features: null, listen: null, pid: null, nodePath: null, startedAt: null, relayEndpoints: null, relayEnabled: null, transport: null, agents: [], workspaces: [], projects: [], providers: [], providerCount: 0, permissions: [], schedules: [], terminals: [] };
   }
-  const { DaemonClient } = await import("@getpaseo/client/internal/daemon-client");
+  const { DaemonClient } = (0, eval)("require")("@getpaseo/client/internal/daemon-client");
   const { url, e2ee } = peerUrl(entry.value);
   const transport = e2ee.enabled ? "relay" : "direct";
   const client = new DaemonClient({
