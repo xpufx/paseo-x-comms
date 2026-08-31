@@ -24,7 +24,7 @@ The plugin embeds the MCP server and adds the X-comms UI. Agents get `x_comms_*`
 
 ### Install
 
-The plugin lives at the repo root (`paseo-plugin.json` id `paseo-x-comms-plugin`):
+The plugin lives at the repo root (`paseo-plugin.json` id `paseo-x-comms`):
 
 ```sh
 paseo plugin add xpufx/paseo-x-comms
@@ -35,7 +35,7 @@ Paseo runs a single `npm install` at the repo root, which pulls both plugin deps
 To update:
 
 ```sh
-paseo plugin update paseo-x-comms-plugin
+paseo plugin update paseo-x-comms
 ```
 
 ### Configure daemons

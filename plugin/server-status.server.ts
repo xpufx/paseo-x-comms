@@ -16,8 +16,9 @@ export function serverPath(): string {
     }
   } catch {}
   try {
-    const base = join(homedir(), ".paseo", "plugins", "paseo-x-comms-plugin");
-    if (existsSync(base)) {
+    for (const pluginId of ["paseo-x-comms", "paseo-x-comms-plugin"]) {
+      const base = join(homedir(), ".paseo", "plugins", pluginId);
+      if (!existsSync(base)) continue;
       const entries = readdirSync(base, { withFileTypes: true });
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;

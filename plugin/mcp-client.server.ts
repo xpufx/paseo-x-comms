@@ -79,7 +79,7 @@ export class McpStdioClient {
     const init = (await this.request("initialize", {
       protocolVersion: "2025-03-26",
       capabilities: {},
-      clientInfo: { name: "paseo-x-comms-plugin", version: "0.0.1" },
+      clientInfo: { name: "paseo-x-comms", version: "0.0.1" },
     })) as { serverInfo?: unknown; capabilities?: unknown };
     this.send({ jsonrpc: "2.0", method: "notifications/initialized" });
     this.initialized = true;
