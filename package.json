@@ -23,9 +23,9 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
-    "@getpaseo/client": "0.7.0-beta.3",
-    "@getpaseo/plugin": "0.7.0-beta.3",
-    "@getpaseo/protocol": "0.7.0-beta.3",
+    "@getpaseo/client": "0.7.0",
+    "@getpaseo/plugin": "0.7.0",
+    "@getpaseo/protocol": "0.7.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^4.4.3"
   },
