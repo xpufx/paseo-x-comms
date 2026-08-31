@@ -1,7 +1,7 @@
 import { usePaseo, useRpc, type PluginTheme } from "@getpaseo/plugin";
 import { Modal } from "@getpaseo/plugin/react-native";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Clipboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { conversationSendRpc, introspectAgentsRpc } from "./registry.shared";
 import { deriveConversations, type ConversationPartner } from "./conversations";
@@ -25,16 +25,32 @@ export function CrossDaemonConversation({
   const [target, setTarget] = useState<ConversationPartner | null>(() => targetCache.get(agentId) ?? null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  const queryClient = useQueryClient();
   const conversations = useQuery({
     queryKey: ["x-comms-conversations", agentId],
     queryFn: () => deriveConversations(paseo, agentId),
+    refetchOnMount: "always",
   });
+  useEffect(() => {
+    const unsub = paseo.agents.subscribe((update) => {
+      if (update.kind === "upsert" && update.agent.id === agentId) {
+        void queryClient.invalidateQueries({ queryKey: ["x-comms-conversations", agentId] });
+      }
+    });
+    return unsub;
+  }, [paseo, agentId, queryClient]);
   const introspect = useQuery({
     queryKey: ["x-comms-introspect"],
     queryFn: () => callIntrospect({}),
     staleTime: 30000,
   });
 
+  const selfName = (() => {
+    try {
+      const snap = (paseo.agents as unknown as { ref: (id: string) => { current: () => { title?: string | null; id: string } | null } }).ref(agentId).current();
+      return snap?.title ?? null;
+    } catch { return null; }
+  })();
   const send = useMutation({
     mutationFn: () =>
       callSend({
@@ -42,7 +58,7 @@ export function CrossDaemonConversation({
         agentId: target?.counterparty.agentId ?? "",
         prompt: draft,
         fromAgentId: agentId,
-        fromAgentName: undefined,
+        fromAgentName: selfName,
       }),
     onSuccess: () => {
       setDraftCached("");

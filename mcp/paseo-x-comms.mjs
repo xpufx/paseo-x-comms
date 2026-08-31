@@ -189,7 +189,7 @@ const TOOL_SCHEMAS = {
   removeDaemon: { name: z.string() },
   listAgents: { daemon: z.string() },
   inspect: { daemon: z.string(), agentId: z.string() },
-  send: { daemon: z.string(), agentId: z.string(), prompt: z.string(), fromAgentId: z.string().optional(), fromAgentName: z.string().optional() },
+  send: { daemon: z.string(), agentId: z.string(), prompt: z.string(), fromAgentId: z.string().nullable().optional(), fromAgentName: z.string().nullable().optional() },
   logs: { daemon: z.string(), agentId: z.string() },
   wait: {
     daemon: z.string(),

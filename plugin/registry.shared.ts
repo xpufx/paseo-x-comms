@@ -266,8 +266,8 @@ export const conversationSendRpc = defineRpc({
     daemon: z.string(),
     agentId: z.string(),
     prompt: z.string(),
-    fromAgentId: z.string().optional(),
-    fromAgentName: z.string().optional(),
+    fromAgentId: z.string().nullable().optional(),
+    fromAgentName: z.string().nullable().optional(),
   }),
   output: z.object({
     daemon: z.string(),

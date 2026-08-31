@@ -31137,7 +31137,7 @@ var TOOL_SCHEMAS = {
   removeDaemon: { name: external_exports.string() },
   listAgents: { daemon: external_exports.string() },
   inspect: { daemon: external_exports.string(), agentId: external_exports.string() },
-  send: { daemon: external_exports.string(), agentId: external_exports.string(), prompt: external_exports.string(), fromAgentId: external_exports.string().optional(), fromAgentName: external_exports.string().optional() },
+  send: { daemon: external_exports.string(), agentId: external_exports.string(), prompt: external_exports.string(), fromAgentId: external_exports.string().nullable().optional(), fromAgentName: external_exports.string().nullable().optional() },
   logs: { daemon: external_exports.string(), agentId: external_exports.string() },
   wait: {
     daemon: external_exports.string(),

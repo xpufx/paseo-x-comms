@@ -324,7 +324,7 @@ function extractServerVersion(serverPath: string): string | null {
   }
 }
 
-export async function handleConversationSend(input: { daemon: string; agentId: string; prompt: string; fromAgentId?: string; fromAgentName?: string }) {
+export async function handleConversationSend(input: { daemon: string; agentId: string; prompt: string; fromAgentId?: string | null; fromAgentName?: string | null }) {
   const sendDaemon = daemonNameForServerId(input.daemon) ?? input.daemon;
   let client: InstanceType<typeof McpStdioClient> | null = null;
   try {
