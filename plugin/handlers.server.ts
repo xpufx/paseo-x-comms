@@ -319,7 +319,12 @@ function extractServerVersion(serverPath: string): string | null {
 }
 
 export async function handleConversationSend(input: { daemon: string; agentId: string; prompt: string; fromAgentId?: string | null; fromAgentName?: string | null }) {
-  const sendDaemon = daemonNameForServerId(input.daemon) ?? input.daemon;
+  let sendDaemon = daemonNameForServerId(input.daemon) ?? input.daemon;
+  // Fallback: if daemon is a serverId (srv_…) and not in registry, scan registry values' offer serverId
+  if (sendDaemon === input.daemon && input.daemon.startsWith("srv_")) {
+    const byOffer = readRegistry(currentRegistryPath()).daemons.find((d) => parseOffer(d.value)?.serverId === input.daemon);
+    if (byOffer) sendDaemon = byOffer.name;
+  }
   let client: InstanceType<typeof McpStdioClient> | null = null;
   try {
     const path = serverPath();
