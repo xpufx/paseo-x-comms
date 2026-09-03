@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { type PluginSurfaceProps, useRpc } from "@getpaseo/plugin";
 import React, { useCallback, useMemo, useState } from "react";
-import { Alert, Clipboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Clipboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Modal } from "@getpaseo/plugin/react-native";
 import {
   registryReadRpc,
@@ -19,6 +19,7 @@ import {
   serverCheckRpc,
   introspectAgentsRpc,
   introduceAgentsRpc,
+  directHostMismatch,
 } from "./registry.shared";
 
 const HOST_FORM_HINT =
@@ -248,15 +249,15 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
     [probe],
   );
 
-  const deriveHost = useCallback(() => {
-    const offer = newValue.match(/#offer=([A-Za-z0-9_-]+)/);
+  const deriveHost = useCallback((value: string) => {
+    const offer = value.match(/#offer=([A-Za-z0-9_-]+)/);
     if (offer && newName.trim().length === 0) {
       try {
         const payload = JSON.parse(Buffer.from(offer[1], "base64").toString("utf8"));
         if (typeof payload.serverId === "string") setNewName(payload.serverId);
       } catch { /* ignore */ }
     }
-  }, [newValue, newName]);
+  }, [newName]);
 
   const handleAdd = useCallback(() => {
     const name = newName.trim();
@@ -346,15 +347,20 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
     [update, edits, applyResult],
   );
 
+  const [pendingRemove, setPendingRemove] = useState<string | null>(null);
+
   const handleRemove = useCallback(
     (name: string) => {
-      Alert.alert("Remove daemon", `Remove '${name}' from the registry?`, [
-        { text: "Cancel", style: "cancel" },
-        { text: "Remove", style: "destructive", onPress: () => remove.mutate({ name }, { onSuccess: applyResult }) },
-      ]);
+      setPendingRemove(name);
     },
-    [remove, applyResult],
+    [],
   );
+
+  const confirmRemove = useCallback(() => {
+    if (!pendingRemove) return;
+    remove.mutate({ name: pendingRemove }, { onSuccess: applyResult });
+    setPendingRemove(null);
+  }, [pendingRemove, remove, applyResult]);
 
   const canAdd = newName.trim().length > 0 && newValue.trim().length > 0;
 
@@ -671,20 +677,14 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
         autoCorrect={false}
       />
       <Text style={styles.label}>Host value</Text>
-      {newName.trim().length > 0 && newValue.trim().length > 0 && !newValue.includes("#offer=") ? (
-        (() => {
-          const urlHost = newValue.replace(/^tcp:\/\//, "").replace(/^ws:\/\//, "").replace(/\?.*$/, "").split(":")[0];
-          const nameHost = newName.trim().split(":")[0];
-          if (urlHost && nameHost && urlHost !== nameHost && !nameHost.includes(urlHost) && !urlHost.includes(nameHost)) {
-            return <Text style={styles.error}>host '{nameHost}' does not match the address host '{urlHost}'</Text>;
-          }
-          return null;
-        })()
-      ) : null}
+      {newName.trim().length > 0 && newValue.trim().length > 0 && !newValue.includes("#offer=") ? (() => {
+        const mismatch = directHostMismatch(newName.trim(), newValue.trim());
+        return mismatch ? <Text style={styles.error}>{mismatch}</Text> : null;
+      })() : null}
       <TextInput
         style={styles.input}
         value={newValue}
-        onChangeText={(text) => { setNewValue(text); deriveHost(); }}
+        onChangeText={(text) => { setNewValue(text); deriveHost(text); }}
         autoCapitalize="none"
         autoCorrect={false}
         placeholder={HOST_FORM_HINT}
@@ -818,6 +818,23 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
           </Text>
         ))
       ) : null}
+      <Modal
+        title="Remove daemon"
+        open={pendingRemove !== null}
+        onOpenChange={(open) => { if (!open) setPendingRemove(null); }}
+      >
+        <Modal.Content>
+          <Text style={styles.detail} selectable>Remove '{pendingRemove}' from the registry?</Text>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+            <Pressable accessibilityRole="button" onPress={confirmRemove} style={styles.buttonDanger}>
+              <Text style={styles.buttonTextDanger}>Remove</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => setPendingRemove(null)} style={styles.buttonSmall}>
+              <Text style={styles.buttonTextSmall}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Modal.Content>
+      </Modal>
     </ScrollView>
   );
 }

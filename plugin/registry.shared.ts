@@ -251,3 +251,22 @@ export const conversationSendRpc = defineRpc({
     error: z.string().nullable(),
   }),
 });
+
+/**
+ * Consistency hint for direct hosts: if the value is a direct host (host:port
+ * or tcp://host:port) and the entered name does not match the URL host part,
+ * surface that as a warning. The name may legitimately differ from an IP, so
+ * this is advisory, not a rejection.
+ */
+export function directHostMismatch(name: string, value: string): string | null {
+  if (value.includes("#offer=") || value.startsWith("unix://") || value.startsWith("/")) {
+    return null;
+  }
+  const urlHost = value.replace(/^tcp:\/\//, "").replace(/^ws:\/\//, "").replace(/\?.*$/, "").split(":")[0];
+  if (!urlHost) return null;
+  const nameHost = name.split(":")[0];
+  if (nameHost && urlHost !== nameHost && !nameHost.includes(urlHost) && !urlHost.includes(nameHost)) {
+    return `host '${nameHost}' does not match the address host '${urlHost}'`;
+  }
+  return null;
+}

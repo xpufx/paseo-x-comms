@@ -16,7 +16,7 @@ export function serverPath(): string {
     }
   } catch {}
   try {
-    for (const pluginId of ["paseo-x-comms", "paseo-x-comms-plugin"]) {
+    for (const pluginId of ["x-comms", "paseo-x-comms", "paseo-x-comms-plugin"]) {
       const base = join(homedir(), ".paseo", "plugins", pluginId);
       if (!existsSync(base)) continue;
       const entries = readdirSync(base, { withFileTypes: true });
@@ -24,12 +24,6 @@ export function serverPath(): string {
         if (!entry.isDirectory()) continue;
         for (const candidate of [join(base, entry.name, "checkout", "mcp", "paseo-x-comms.bundled.mjs"), join(base, entry.name, "checkout", "mcp", "paseo-x-comms.mjs")]) if (existsSync(candidate)) return candidate;
       }
-    }
-  } catch {}
-  try {
-    const url = (import.meta as unknown as { url?: string })?.url;
-    if (url) {
-      for (const candidate of candidatePaths(dirname(fileURLToPath(url)))) if (existsSync(candidate)) return candidate;
     }
   } catch {}
   throw new Error("could not locate bundled mcp server (mcp/paseo-x-comms.mjs)");

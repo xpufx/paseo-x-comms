@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, renameSync, mkdirSync } from "node:fs";
+export { directHostMismatch } from "./registry.shared";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 
@@ -209,25 +210,6 @@ export function deriveHostFromValue(value: string): string | null {
     } catch {
       return null;
     }
-  }
-  return null;
-}
-
-/**
- * Consistency hint for direct hosts: if the value is a direct host (host:port
- * or tcp://host:port) and the entered name does not match the URL host part,
- * surface that as a warning. The name may legitimately differ from an IP, so
- * this is advisory, not a rejection.
- */
-export function directHostMismatch(name: string, value: string): string | null {
-  if (value.includes("#offer=") || value.startsWith("unix://") || value.startsWith("/")) {
-    return null;
-  }
-  const urlHost = value.replace(/^tcp:\/\//, "").replace(/^ws:\/\//, "").replace(/\?.*$/, "").split(":")[0];
-  if (!urlHost) return null;
-  const nameHost = name.split(":")[0];
-  if (nameHost && urlHost !== nameHost && !nameHost.includes(urlHost) && !urlHost.includes(nameHost)) {
-    return `host '${nameHost}' does not match the address host '${urlHost}'`;
   }
   return null;
 }

@@ -337,8 +337,8 @@ function readUiPrefs(): UiPrefsState {
       const parsed = JSON.parse(readPrefsFile(UI_PREFS_FILE, "utf8")) as UiPrefsState;
       if (parsed && typeof parsed === "object") return parsed;
     }
-  } catch {
-    // corrupt prefs fall back to defaults; not fatal
+  } catch (err) {
+    console.error(`[plugin] corrupt ${UI_PREFS_FILE}, ignoring: ${err instanceof Error ? err.message : String(err)}`);
   }
   return {};
 }
@@ -445,15 +445,51 @@ function str(value: unknown): string {
   return typeof value === "string" ? value : String(value ?? "");
 }
 
+// The paseo CLI has varied its output shape across versions: some commands wrap
+// their list in { data: [...] }, { schedules: [...] }, { terminals: [...] },
+// etc. unwrapList tries the known wrapper keys in order before falling back to
+// treating the raw value itself as a list.
+function unwrapList(raw: unknown, ...subkeys: string[]): Record<string, unknown>[] {
+  if (Array.isArray(raw)) return raw as Record<string, unknown>[];
+  const obj = raw as Record<string, unknown> | null;
+  if (!obj || typeof obj !== "object") return [];
+  for (const key of subkeys) {
+    if (Array.isArray(obj[key])) return obj[key] as Record<string, unknown>[];
+  }
+  return [];
+}
+
+// daemon status is sometimes { data: { ... } } and sometimes the payload directly.
+function unwrapStatusPayload(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const data = obj.data;
+  if (data && typeof data === "object" && !Array.isArray(data)) return data as Record<string, unknown>;
+  return obj;
+}
+
+// Null-safe field access on an unwrapped status payload.
+function field(payload: Record<string, unknown> | null, ...keys: string[]): unknown {
+  if (!payload) return undefined;
+  for (const key of keys) {
+    if (payload[key] !== undefined && payload[key] !== null && payload[key] !== "") return payload[key];
+  }
+  return undefined;
+}
+
+function notReachedResult(name: string, error: string, offer: ReturnType<typeof parseOffer>, transport: string): { name: string; reached: boolean; error: string | null; serverId: string | null; hostname: string | null; version: string | null; desktopManaged: boolean | null; capabilities: Record<string, unknown> | null; features: Record<string, boolean> | null; listen: string | null; pid: number | null; nodePath: string | null; startedAt: string | null; relayEndpoints: string[] | null; relayEnabled: boolean | null; transport: string; agents: { agentId: string; shortId: string; name: string; status: string; provider: string; model: string | null; providerOptions: Record<string, unknown> | null; cwd: string | null; workspaceId: string | null; projectName: string | null; createdAt: string | null; archived: boolean | null }[]; workspaces: { id: string; name: string; project: string; isolation: string; cwd: string | null }[]; projects: { id: string; name: string; source: string | null }[]; providers: { provider: string; available: boolean; error: string | null }[]; providerCount: number; permissions: { id: string; agentId: string; name: string }[]; schedules: { id: string; name: string; state: string }[]; terminals: { id: string; name: string; cwd: string | null; status: string | null }[] } {
+  return { name, reached: false, error, serverId: offer?.serverId ?? null, hostname: null, version: null, desktopManaged: null, capabilities: null, features: null, listen: null, pid: null, nodePath: null, startedAt: null, relayEndpoints: null, relayEnabled: null, transport, agents: [], workspaces: [], projects: [], providers: [], providerCount: 0, permissions: [], schedules: [], terminals: [] };
+}
+
 export async function handleDaemonDump(input: { daemon: string }) {
   const daemons = readRegistry(currentRegistryPath()).daemons;
   const entry = daemons.find((d) => d.name === input.daemon);
   if (!entry) {
-    return { name: input.daemon, reached: false, error: `unknown daemon '${input.daemon}'`, serverId: null, hostname: null, version: null, desktopManaged: null, capabilities: null, features: null, listen: null, pid: null, nodePath: null, startedAt: null, relayEndpoints: null, relayEnabled: null, transport: null, agents: [], workspaces: [], projects: [], providers: [], providerCount: 0, permissions: [], schedules: [], terminals: [] };
+    return notReachedResult(input.daemon, `unknown daemon '${input.daemon}'`, null, "");
   }
-  const offer = parseOffer(entry!.value);
+  const offer = parseOffer(entry.value);
   const transport = offer ? "relay" : "direct";
-  const hostValue = entry!.value;
+  const hostValue = entry.value;
   async function tryHost(args: string[]): Promise<unknown> {
     try {
       return await runPaseoDumpJson([...args, "--host", hostValue, "--json"]);
@@ -470,34 +506,28 @@ export async function handleDaemonDump(input: { daemon: string }) {
       tryHost(["schedule", "ls"]),
       tryHost(["terminal", "ls"]),
     ]);
-    const statusPayload = status && typeof status === "object" && (status as any).data ? (status as any).data : status;
-    const resolvedPayload = statusPayload && typeof statusPayload === "object" ? (statusPayload as Record<string, unknown>) : null;
-    const agentsRaw = Array.isArray(agentsRes) ? agentsRes : Array.isArray((agentsRes as any)?.data) ? (agentsRes as any).data : [];
-    const workspacesRaw = Array.isArray(workspacesRes) ? workspacesRes : Array.isArray((workspacesRes as any)?.data) ? (workspacesRes as any).data : [];
-    const projectsRaw = Array.isArray(projectsRes) ? projectsRes : Array.isArray((projectsRes as any)?.data) ? (projectsRes as any).data : Array.isArray((projectsRes as any)?.projects) ? (projectsRes as any).projects : [];
-    const agentsEntries = (Array.isArray(agentsRaw) ? agentsRaw : []) as Record<string, unknown>[];
-    const workspacesEntries = (Array.isArray(workspacesRaw) ? workspacesRaw : []) as Record<string, unknown>[];
-    const projectsEntries = (Array.isArray(projectsRaw) ? projectsRaw : []) as Record<string, unknown>[];
-    const schedEntries = Array.isArray((schedRes as any)?.schedules)
-      ? ((schedRes as any)?.schedules ?? []) as Record<string, unknown>[]
-      : Array.isArray((schedRes as any)?.data)
-        ? ((schedRes as any).data as Record<string, unknown>[])
-        : Array.isArray(schedRes) ? (schedRes as Record<string, unknown>[]) : [];
-    const termEntries = Array.isArray((termRes as any)?.terminals)
-      ? ((termRes as any)?.terminals ?? []) as Record<string, unknown>[]
-      : Array.isArray((termRes as any)?.data)
-        ? ((termRes as any).data as Record<string, unknown>[])
-        : Array.isArray(termRes) ? (termRes as Record<string, unknown>[]) : [];
-    const providersFromStatus = safe((resolvedPayload as any)?.providers ?? (status as any)?.providers ?? [], (p) => ({
-      provider: str(p.provider),
-      available: (p as any)?.available === true,
-      error: (p as any)?.error ?? null,
+
+    const p = unwrapStatusPayload(status);
+    const agentsEntries    = unwrapList(agentsRes,    "data");
+    const workspacesEntries = unwrapList(workspacesRes, "data");
+    const projectsEntries  = unwrapList(projectsRes,  "data", "projects");
+    const schedEntries     = unwrapList(schedRes,     "schedules", "data");
+    const termEntries      = unwrapList(termRes,      "terminals", "data");
+
+    const providersRaw = field(p, "providers") ?? field({ providers: (status as Record<string, unknown>)?.providers }, "providers") ?? [];
+    const providersFromStatus = safe(providersRaw, (prov) => ({
+      provider: str(prov.provider),
+      available: (prov as Record<string, unknown>).available === true,
+      error: ((prov as Record<string, unknown>).error as string | null) ?? null,
     }));
-    const serverId = str((resolvedPayload as any)?.serverId ?? offer?.serverId ?? "");
-    const hostname = str((resolvedPayload as any)?.hostname ?? "");
-    const version = str((resolvedPayload as any)?.daemonVersion ?? (resolvedPayload as any)?.version ?? "");
+
+    const serverId = str(field(p, "serverId") ?? offer?.serverId ?? "");
+    const hostname = str(field(p, "hostname") ?? "");
+    const version  = str(field(p, "daemonVersion", "version") ?? "");
+
     const reached = status !== null || agentsRes !== null || workspacesRes !== null;
     if (!reached) throw new Error("all peer probes failed");
+
     return {
       name: input.daemon,
       reached: true,
@@ -505,34 +535,38 @@ export async function handleDaemonDump(input: { daemon: string }) {
       serverId,
       hostname,
       version,
-      desktopManaged: (resolvedPayload as any)?.desktopManaged ?? null,
+      desktopManaged: (field(p, "desktopManaged") as boolean | null) ?? null,
       capabilities: null,
       features: null,
-      listen: str((resolvedPayload as any)?.listen ?? ""),
-      pid: (resolvedPayload as any)?.pid ?? null,
-      nodePath: str((resolvedPayload as any)?.daemonNode ?? (resolvedPayload as any)?.nodePath ?? ""),
-      startedAt: str((resolvedPayload as any)?.startedAt ?? ""),
-      relayEndpoints: (resolvedPayload as any)?.relay
-        ? [str((resolvedPayload as any)?.relay?.endpoint ?? ""), str((resolvedPayload as any)?.relay?.publicEndpoint ?? "")]
+      listen: str(field(p, "listen") ?? ""),
+      pid: (field(p, "pid") as number | null) ?? null,
+      nodePath: str(field(p, "daemonNode", "nodePath") ?? ""),
+      startedAt: str(field(p, "startedAt") ?? ""),
+      relayEndpoints: field(p, "relay")
+        ? [str((p?.relay as Record<string, unknown>)?.endpoint ?? ""), str((p?.relay as Record<string, unknown>)?.publicEndpoint ?? "")]
         : null,
-      relayEnabled: (resolvedPayload as any)?.relay?.enabled ?? null,
+      relayEnabled: ((p?.relay as Record<string, unknown> | undefined)?.enabled as boolean | null) ?? null,
       transport,
       agents: agentsEntries.map((a) => {
-        const agent = (a as any)?.agent ?? a;
+        // ls entries are sometimes { agent: { ... }, project: { ... } }, sometimes flat.
+        const agent = (a.agent as Record<string, unknown>) ?? a;
         return {
           agentId: str(agent.id), shortId: str(agent.shortId), name: str(agent.name), status: str(agent.status),
-          provider: str(agent.provider), model: (agent as any)?.model ?? null,
-          providerOptions: (agent as any)?.providerOptions ?? null,
-          cwd: str(agent.cwd ?? ""), workspaceId: str((a as any)?.project?.workspaceId ?? (agent as any)?.workspaceId ?? ""),
-          projectName: str((a as any)?.project?.name ?? (agent as any)?.project ?? ""),
-          createdAt: str(agent.created ?? agent.createdAt ?? ""), archived: (agent as any)?.archived ?? null,
+          provider: str(agent.provider),
+          model: (agent.model as string | null) ?? null,
+          providerOptions: (agent.providerOptions as Record<string, unknown> | null) ?? null,
+          cwd: str(agent.cwd ?? ""),
+          workspaceId: str((a.project as Record<string, unknown>)?.workspaceId ?? agent.workspaceId ?? ""),
+          projectName: str((a.project as Record<string, unknown>)?.name ?? agent.project ?? ""),
+          createdAt: str(agent.created ?? agent.createdAt ?? ""),
+          archived: (agent.archived as boolean | null) ?? null,
         };
       }),
       workspaces: workspacesEntries.map((w) => ({
         id: str(w.id ?? w.workspaceId ?? ""), name: str(w.name), project: str(w.project), isolation: str(w.isolation), cwd: str(w.cwd ?? ""),
       })),
       projects: projectsEntries.map((pr) => ({
-        id: str(pr.id ?? pr.projectId ?? ""), name: str(pr.name), source: str((pr as any)?.source ?? ""),
+        id: str(pr.id ?? pr.projectId ?? ""), name: str(pr.name), source: str(pr.source ?? ""),
       })),
       providers: providersFromStatus,
       providerCount: providersFromStatus.length,
@@ -541,10 +575,11 @@ export async function handleDaemonDump(input: { daemon: string }) {
         id: str(sc.id ?? sc.scheduleId ?? ""), name: str(sc.name ?? ""), state: str(sc.state ?? sc.enabled ?? ""),
       })),
       terminals: termEntries.map((t) => ({
-        id: str(t.id ?? t.terminalId ?? ""), name: str(t.name ?? t.title ?? ""), cwd: (t as any)?.cwd ?? null, status: (t as any)?.status ?? null,
+        id: str(t.id ?? t.terminalId ?? ""), name: str(t.name ?? t.title ?? ""),
+        cwd: (t.cwd as string | null) ?? null, status: (t.status as string | null) ?? null,
       })),
     };
   } catch (cause) {
-    return { name: input.daemon, reached: false, error: cause instanceof Error ? cause.message : String(cause), serverId: offer?.serverId ?? null, hostname: null, version: null, desktopManaged: null, capabilities: null, features: null, listen: null, pid: null, nodePath: null, startedAt: null, relayEndpoints: null, relayEnabled: null, transport, agents: [], workspaces: [], projects: [], providers: [], providerCount: 0, permissions: [], schedules: [], terminals: [] };
+    return notReachedResult(input.daemon, cause instanceof Error ? cause.message : String(cause), offer, transport);
   }
 }
