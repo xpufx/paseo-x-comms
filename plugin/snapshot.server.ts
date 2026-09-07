@@ -1,7 +1,9 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFile } from "node:child_process";
+import { createPluginLogger, safeSpawn } from "paseo-plugin-helper/server";
 import { currentRegistryPath, readRegistry, stateDir, migrateFromRoot } from "./registry.server";
+
+const snapLog = createPluginLogger("paseo-x-comms", { subsystem: "snapshot" });
 
 const PROBE_TIMEOUT_MS = 15000;
 const SNAPSHOT_FILE = join(stateDir(), "snapshot.json");
@@ -41,19 +43,14 @@ export interface DaemonSnapshot {
 let snapshot: DaemonSnapshot | null = null;
 let inflight: Promise<DaemonSnapshot> | null = null;
 
-function runPaseoJson(args: string[]): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    execFile("paseo", args, { timeout: PROBE_TIMEOUT_MS }, (error, stdout, stderr) => {
-      if (error) reject(new Error((stderr || error.message).trim()));
-      else {
-        try {
-          resolve(JSON.parse(stdout));
-        } catch {
-          reject(new Error("paseo returned non-JSON output"));
-        }
-      }
-    });
-  });
+async function runPaseoJson(args: string[]): Promise<unknown> {
+  const r = await safeSpawn("paseo", args, { timeoutMs: PROBE_TIMEOUT_MS });
+  if (r.code !== 0) throw new Error((r.stderr || `exit ${r.code}`).trim());
+  try {
+    return JSON.parse(r.stdout);
+  } catch {
+    throw new Error("paseo returned non-JSON output");
+  }
 }
 
 async function probeDaemon(value: string): Promise<{
@@ -167,7 +164,7 @@ export function getSnapshotFresh(): Promise<DaemonSnapshot> {
 /** Kick off a first snapshot at plugin load; never throws at startup. */
 export function initializeSnapshot(): void {
   void refreshSnapshot().catch((error) => {
-    console.error(`[snapshot] initial refresh failed: ${error instanceof Error ? error.message : error}`);
+    snapLog.error(`initial refresh failed: ${error instanceof Error ? error.message : error}`);
   });
 }
 

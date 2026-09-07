@@ -1,98 +1,32 @@
-import { spawn, type ChildProcess } from "node:child_process";
-import { createInterface } from "node:readline";
-import { randomUUID } from "node:crypto";
+import { McpClient } from "paseo-plugin-helper/mcp";
+import { createPluginLogger } from "paseo-plugin-helper/server";
+
+const log = createPluginLogger("paseo-x-comms", { subsystem: "mcp-client" });
 
 /**
- * Minimal MCP stdio client for talking to the installed paseo-x-comms
- * server. Deliberately dependency-free: the handshake is small and stable
- * (initialize -> notifications/initialized -> tools/call), and it keeps the
- * plugin bundle lean instead of bundling the whole MCP SDK.
+ * Thin wrapper around the helper McpClient for talking to the installed
+ * paseo-x-comms server over stdio. Keeps the call sites stable: connect
+ * returns server info plus tool names, callTool returns parsed JSON payloads,
+ * and close releases the child process tree.
  */
 export class McpStdioClient {
-  private readonly child: ChildProcess;
-  private readonly lines: ReturnType<typeof createInterface>;
-  private readonly pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
-  private initialized = false;
+  private readonly client: McpClient;
 
   constructor(serverPath: string, args: string[] = []) {
-    this.child = spawn(process.execPath, [serverPath, ...args], {
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    this.child.stderr?.on("data", (chunk) => {
-      if (process.env.PASEO_X_COMMS_DEBUG) {
-        console.error(`[mcp-client] ${String(chunk)}`);
-      }
-    });
-    this.child.on("close", (code) => {
-      const err = new Error(`mcp server exited with code ${code ?? "null"}`);
-      for (const pending of this.pending.values()) pending.reject(err);
-      this.pending.clear();
-    });
-    this.child.on("error", (err) => {
-      for (const pending of this.pending.values()) pending.reject(err);
-      this.pending.clear();
-    });
-    const stdout = this.child.stdout;
-    if (!stdout) throw new Error("server stdout is unavailable");
-    this.lines = createInterface({ input: stdout });
-    this.lines.on("line", (line) => {
-      let message: { id?: string; error?: unknown; result?: unknown };
-      try {
-        message = JSON.parse(line);
-      } catch {
-        return;
-      }
-      if (typeof message.id !== "string") return;
-      const pending = this.pending.get(message.id);
-      if (!pending) return;
-      this.pending.delete(message.id);
-      if (message.error) {
-        pending.reject(new Error(JSON.stringify(message.error)));
-      } else {
-        pending.resolve(message.result);
-      }
-    });
-  }
-
-  private send(message: Record<string, unknown>): void {
-    const stdin = this.child.stdin;
-    if (!stdin) throw new Error("server stdin is unavailable");
-    stdin.write(`${JSON.stringify(message)}\n`);
-  }
-
-  private request(method: string, params: Record<string, unknown>): Promise<unknown> {
-    const id = randomUUID();
-    return new Promise<unknown>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new Error(`mcp request ${method} timed out`));
-      }, 15000);
-      this.pending.set(id, {
-        resolve: (v) => { clearTimeout(timeout); resolve(v); },
-        reject: (e) => { clearTimeout(timeout); reject(e); },
-      });
-      this.send({ jsonrpc: "2.0", id, method, params });
+    this.client = McpClient.forStdio(process.execPath, [serverPath, ...args], undefined, {
+      clientInfo: { name: "paseo-x-comms", version: "0.3.0" },
+      timeoutMs: 15000,
     });
   }
 
   async connect(): Promise<{ serverInfo: unknown; tools: Array<{ name: string }> }> {
-    const init = (await this.request("initialize", {
-      protocolVersion: "2025-03-26",
-      capabilities: {},
-      clientInfo: { name: "paseo-x-comms", version: "0.0.1" },
-    })) as { serverInfo?: unknown; capabilities?: unknown };
-    this.send({ jsonrpc: "2.0", method: "notifications/initialized" });
-    this.initialized = true;
-    const listed = (await this.request("tools/list", {})) as { tools?: Array<{ name: string }> };
-    return { serverInfo: init.serverInfo, tools: listed.tools ?? [] };
+    await this.client.initialize();
+    const tools = await this.client.listTools();
+    return { serverInfo: this.client.serverInfo, tools: tools.map((tool) => ({ name: tool.name })) };
   }
 
   async callTool(name: string, arguments_: Record<string, unknown>): Promise<unknown> {
-    if (!this.initialized) throw new Error("MCP client is not connected");
-    const result = (await this.request("tools/call", { name, arguments: arguments_ })) as {
-      content?: Array<{ type: string; text?: string }>;
-      isError?: boolean;
-    };
+    const result = await this.client.callTool(name, arguments_);
     if (result.isError) {
       const text = result.content?.map((part) => part.text ?? "").join("\n") ?? "tool error";
       throw new Error(text.slice(0, 400));
@@ -106,15 +40,8 @@ export class McpStdioClient {
   }
 
   close(): void {
-    this.initialized = false;
-    const stdin = this.child.stdin;
-    if (stdin) stdin.end();
-    for (const pending of this.pending.values()) pending.reject(new Error("MCP client closed"));
-    this.pending.clear();
-    this.lines.close();
-    const child = this.child;
-    setTimeout(() => {
-      if (child && !child.killed) child.kill();
-    }, 1000).unref();
+    this.client.close().catch((error: unknown) => {
+      log.error(`mcp client close failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
   }
 }

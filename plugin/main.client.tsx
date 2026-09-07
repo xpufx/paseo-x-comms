@@ -3,6 +3,8 @@ import { type PluginSurfaceProps, useRpc } from "@getpaseo/plugin";
 import React, { useCallback, useMemo, useState } from "react";
 import { Clipboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Modal } from "@getpaseo/plugin/react-native";
+import { truncate } from "paseo-plugin-helper/shared";
+import { Badge, EmptyState, StatusDot } from "paseo-plugin-helper/client";
 import {
   registryReadRpc,
   daemonAddRpc,
@@ -28,11 +30,8 @@ const HOST_FORM_HINT =
 // Display form for host values: relay offers are long, so show head...tail.
 // The copy icon next to the value always copies the full string.
 function displayHost(value: string): string {
-  const MAX = 40;
-  if (value.length <= MAX) return value;
-  const head = value.slice(0, 20);
-  const tail = value.slice(-16);
-  return `${head}…${tail}`;
+  if (value.length <= 40) return value;
+  return truncate(value, 36);
 }
 
 export function MainSurface({ theme, layout }: PluginSurfaceProps) {
@@ -446,7 +445,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
         </Pressable>
       </View>
       {read.isPending ? <Text style={styles.detail}>Loading…</Text> : null}
-      {!read.data?.exists ? <Text style={styles.detail}>No registry file yet.</Text> : null}
+      {!read.data?.exists ? <EmptyState title="No registry file yet." description="Add your first daemon below." /> : null}
       {read.data && !read.data.validJson ? (
         <Text style={styles.error}>Registry is not valid JSON: {read.data.parseError}</Text>
       ) : null}
@@ -543,9 +542,10 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
                   </View>
                   {h ? (
                     h.reachable ? (
-                      <Text style={styles.ok} selectable>
-                        ✓ reachable {h.agentCount !== null ? `(${h.agentCount} agents)` : ""}
-                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <StatusDot variant="success" size="sm" />
+                        <Badge label={h.agentCount !== null ? `reachable (${h.agentCount} agents)` : "reachable"} variant="success" />
+                      </View>
                     ) : (
                       <View>
                         <Text style={styles.errorMuted} selectable>

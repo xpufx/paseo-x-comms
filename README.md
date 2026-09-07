@@ -4,12 +4,12 @@
 
 > Work in progress. Not all features work %100 as described.
 
-[paseo](https://paseo.sh) is an agent orchestrator: AI coding agents run on paseo daemons, each managing workspaces, tools, and permissions. **paseo-x-comms** lets agents on one daemon talk to agents on another — even across hosts — via the daemon relay (WebSocket + E2EE) or direct TCP.
+[paseo](https://paseo.sh) is an agent orchestrator: AI coding agents run on paseo daemons, each managing workspaces, tools, and permissions. **paseo-x-comms** lets agents on one daemon talk to agents on another - even across hosts - via the daemon relay (WebSocket + E2EE) or direct TCP.
 
 This repo ships two things:
 
-* **Paseo plugin** (recommended) — UI + embedded MCP server. (This README is for the plugin. See below)
-* **Standalone MCP server** (`mcp/`) — the same server without the paseo plugin. See **[mcp/README.md](mcp/README.md)** for its standalone install, tool reference, and protocol details.
+* **Paseo plugin** (recommended) - UI + embedded MCP server. (This README is for the plugin. See below)
+* **Standalone MCP server** (`mcp/`) - the same server without the paseo plugin. See **[mcp/README.md](mcp/README.md)** for its standalone install, tool reference, and protocol details.
 
 ## Plugin
 
@@ -17,10 +17,10 @@ The plugin embeds the MCP server and adds the X-comms UI. Agents get `x_comms_*`
 
 ### What you get
 
-* **Main surface — X-comms** (`plugin/main.client.tsx`): registered daemons list with health (reachable/unreachable + agent count), add/edit/remove with host-form validation and reachability probe, refresh (identity + snapshot), server version check, introduce-agents picker, debug dump per daemon.
+* **Main surface - X-comms** (`plugin/main.client.tsx`): registered daemons list with health (reachable/unreachable + agent count), add/edit/remove with host-form validation and reachability probe, refresh (identity + snapshot), server version check, introduce-agents picker, debug dump per daemon.
 * **Composer pill** (`plugin/x-comms-pill.tsx`): one `X-comms` pill per agent in the composer; opens the conversation panel for that agent.
 * **Agent panel** (`plugin/x-comms-panel.tsx` / `x-comms-timeline.tsx` / `x-comms-conversation.tsx`): per-agent conversation view with timeline rendering of the `[x-comms]` envelope, send/reply, wait, and permission handling.
-* **Embedded MCP server** (`mcp/paseo-x-comms.mjs`): spawned via `serverPath()` from `import.meta.url`; shares the repo-root `node_modules` — no separate install or `paseo` on PATH required beyond the daemon itself.
+* **Embedded MCP server** (`mcp/paseo-x-comms.mjs`): spawned via `serverPath()` from `import.meta.url`; shares the repo-root `node_modules` - no separate install or `paseo` on PATH required beyond the daemon itself.
 
 ### Install
 
@@ -49,9 +49,9 @@ The registry is at `~/.paseo/paseo-x-comms/registry.json`:
 }
 ```
 
-* Value is an **opaque `--host` string** — paseo classifies it. `https://app.paseo.sh/#offer=…` is a relay connection (E2EE); anything else (`host:port`, `tcp://…`, `unix://…`, IPC path, bare port) is a direct connection. See [mcp/README.md#host-forms](mcp/README.md#host-forms).
+* Value is an **opaque `--host` string** - paseo classifies it. `https://app.paseo.sh/#offer=…` is a relay connection (E2EE); anything else (`host:port`, `tcp://…`, `unix://…`, IPC path, bare port) is a direct connection. See [mcp/README.md#host-forms](mcp/README.md#host-forms).
 * Manage it from the plugin UI (Main surface) or via the MCP tools `x_comms_add_daemon` / `x_comms_remove_daemon` / `x_comms_list_daemons`.
-* The file holds live pairing offers (serverId, public keys, relay endpoints) — treat it as credentials, never commit it.
+* The file holds live pairing offers (serverId, public keys, relay endpoints) - treat it as credentials, never commit it.
 
 Quick pairing:
 
@@ -68,7 +68,7 @@ Every `x_comms_send` prepends one line:
 
 `sender` (agentId, agentName, host, daemonServerId, cwd) + `target` (daemon, agentId) + `sentAt`. Prompt text stays prose after the envelope. Recipients parse the envelope and reply via `x_comms_send` to `sender.agentId` on the sender's daemon. Full envelope + permission loop documented in [mcp/README.md#message-envelope](mcp/README.md#message-envelope) and [mcp/README.md#behavior-notes](mcp/README.md#behavior-notes).
 
-Tools (via the embedded server) are `x_comms_list_daemons`, `x_comms_add_daemon`, `x_comms_remove_daemon`, `x_comms_list_agents`, `x_comms_inspect`, `x_comms_send`, `x_comms_logs`, `x_comms_wait`, `x_comms_list_permissions`, `x_comms_allow_permission`, `x_comms_deny_permission` — see [mcp/README.md#tools](mcp/README.md#tools) for the reference. The plugin's conversation/panel UI wraps `send`/`logs`/`wait`/permissions for interactive use.
+Tools (via the embedded server) are `x_comms_list_daemons`, `x_comms_add_daemon`, `x_comms_remove_daemon`, `x_comms_list_agents`, `x_comms_inspect`, `x_comms_send`, `x_comms_logs`, `x_comms_wait`, `x_comms_list_permissions`, `x_comms_allow_permission`, `x_comms_deny_permission` - see [mcp/README.md#tools](mcp/README.md#tools) for the reference. The plugin's conversation/panel UI wraps `send`/`logs`/`wait`/permissions for interactive use.
 
 ## Repository layout
 

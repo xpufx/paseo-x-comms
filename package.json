@@ -27,6 +27,7 @@
     "@getpaseo/plugin": "0.7.0",
     "@getpaseo/protocol": "0.7.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "paseo-plugin-helper": "^0.2.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

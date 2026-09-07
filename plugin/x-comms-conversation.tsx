@@ -10,6 +10,26 @@ const draftCache = new Map<string, string>();
 const targetCache = new Map<string, ConversationPartner | null>();
 const sentCache = new Map<string, Map<string, ConversationMessage[]>>();
 
+/**
+ * Reactive hook: refresh an agent's conversation queries whenever the agent
+ * store reports an upsert for it.
+ */
+function useAgentConversationsRefresh(
+  paseo: ReturnType<typeof usePaseo>,
+  agentId: string,
+  queryClient: ReturnType<typeof useQueryClient>,
+): void {
+  useEffect(() => {
+    const unsub = paseo.agents.subscribe((update) => {
+      if (update.kind === "upsert" && update.agent.id === agentId) {
+        void queryClient.invalidateQueries({ queryKey: ["x-comms-conversations", agentId] });
+        void queryClient.invalidateQueries({ queryKey: ["x-comms-threads", agentId] });
+      }
+    });
+    return unsub;
+  }, [paseo, agentId, queryClient]);
+}
+
 export function CrossDaemonConversation({
   theme,
   agentId,
@@ -37,15 +57,7 @@ export function CrossDaemonConversation({
     queryFn: () => deriveConversations(paseo, agentId),
     refetchOnMount: "always",
   });
-  useEffect(() => {
-    const unsub = paseo.agents.subscribe((update) => {
-      if (update.kind === "upsert" && update.agent.id === agentId) {
-        void queryClient.invalidateQueries({ queryKey: ["x-comms-conversations", agentId] });
-        void queryClient.invalidateQueries({ queryKey: ["x-comms-threads", agentId] });
-      }
-    });
-    return unsub;
-  }, [paseo, agentId, queryClient]);
+  useAgentConversationsRefresh(paseo, agentId, queryClient);
   const introspect = useQuery({
     queryKey: ["x-comms-introspect"],
     queryFn: () => callIntrospect({}),
@@ -145,7 +157,7 @@ export function CrossDaemonConversation({
         </ScrollView>
       ) : (
         <Text style={{ color: theme.colors.foregroundMuted, fontSize: 13, marginBottom: 8 }}>
-          No x-comms conversations yet — pick a peer to start.
+          No x-comms conversations yet - pick a peer to start.
         </Text>
       )}
       {target ? (
@@ -159,7 +171,7 @@ export function CrossDaemonConversation({
           const sent = sentCache.get(agentId)?.get(target.conversationId) ?? [];
           const incoming = thread?.messages ?? [];
           const all = [...incoming, ...sent].sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
-          if (all.length === 0) return <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12, marginBottom: 8, fontStyle: "italic" as const }}>No messages yet — send the first.</Text>;
+          if (all.length === 0) return <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12, marginBottom: 8, fontStyle: "italic" as const }}>No messages yet - send the first.</Text>;
           return (
             <ScrollView style={{ maxHeight: 180, marginBottom: 8, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 6, padding: 6 }}>
               {all.map((m) => (

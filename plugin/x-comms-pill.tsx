@@ -1,19 +1,18 @@
-import type { PaseoAgentListResult, PaseoAgentUpdate } from "@getpaseo/client";
 import { Icon, type PluginClientContext, type PluginComposerPillProps } from "@getpaseo/plugin";
-import { Modal } from "@getpaseo/plugin/react-native";
-import { useEffect, useMemo, useState } from "react";
+import { AboutSection, Tabs, registerComposerPill } from "paseo-plugin-helper/client";
+import { useMemo, useState } from "react";
 import { Text } from "react-native";
 import { CrossDaemonConversation } from "./x-comms-conversation";
 
 function CrossDaemonPill(props: PluginComposerPillProps) {
   const { theme } = props;
   const style = useMemo(
-    () => ({ color: theme.colors.accent, flexShrink: 1 }),
+    () => ({ color: theme.colors.accent, flexShrink: 1, fontSize: 10 }),
     [theme],
   );
   return (
     <>
-      <Icon name="PhoneOutgoing" size={14} color={theme.colors.accent} />
+      <Icon name="PhoneOutgoing" size={9} color={theme.colors.accent} />
       <Text numberOfLines={1} style={style}>
         X-comms
       </Text>
@@ -21,80 +20,45 @@ function CrossDaemonPill(props: PluginComposerPillProps) {
   );
 }
 
+function XCommsModalContent({ theme, agentId }: { theme: PluginComposerPillProps["theme"]; agentId: string }) {
+  const [tab, setTab] = useState("chat");
+  return (
+    <>
+      <Tabs
+        tabs={[
+          { id: "chat", label: "Chat" },
+          { id: "about", label: "About" },
+        ]}
+        activeTab={tab}
+        onTabChange={setTab}
+      />
+      {tab === "about" ? (
+        <AboutSection
+          name="X-comms"
+          description="Cross-daemon agent conversation over Paseo Relay."
+          version="0.3.0"
+          repository="https://github.com/xpufx/paseo-cross-daemon-comms.git"
+          license="Apache-2.0"
+        />
+      ) : (
+        <CrossDaemonConversation theme={theme} agentId={agentId} />
+      )}
+    </>
+  );
+}
+
 /**
- * One composer pill per agent. Tapping the pill opens that agent's x-comms
- * conversation in a Modal anchored to (and hosted by) the pill's own component
- * tree, via local state — so it opens connected to the pill and closes with it.
- * Pills are seeded from the agent list and follow the agent update stream so they
- * appear and disappear as agents come and go.
+ * One composer pill per agent. Lifecycle (agent subscription, pill mount and
+ * unmount, modal open state, theme) is managed by registerComposerPill; this
+ * module only supplies the pill body and modal content.
  */
 export function contributeClient(client: PluginClientContext) {
-  const pills = new Map<string, () => void>();
-
-  function addPill(agentId: string, workspaceId: string) {
-    if (pills.has(agentId)) return;
-    let setOpen: ((open: boolean) => void) | null = null;
-    const remove = client.addComposerPill({
-      id: "x-comms",
-      title: "X-comms",
-      workspaceId,
-      agentId,
-      Component: ({ theme }) => {
-        const [isOpen, setIsOpen] = useState(false);
-        setOpen = setIsOpen;
-        return (
-          <>
-            <CrossDaemonPill {...{ theme, agentId, workspaceId, host: undefined as never, layout: undefined as never }} />
-            <Modal
-              title="X-comms"
-              icon={<Icon name="PhoneOutgoing" />}
-              open={isOpen}
-              onOpenChange={(open: boolean) => {
-                if (!open) setIsOpen(false);
-              }}
-            >
-              <Modal.Content>
-                <CrossDaemonConversation theme={theme} agentId={agentId} />
-              </Modal.Content>
-            </Modal>
-          </>
-        );
-      },
-      onPress() {
-        setOpen?.(true);
-      },
-    });
-    pills.set(agentId, remove);
-  }
-
-  function removePill(agentId: string) {
-    pills.get(agentId)?.();
-    pills.delete(agentId);
-  }
-
-  const unsubscribe = client.paseo.agents.subscribe((update: PaseoAgentUpdate) => {
-    if (update.kind === "remove") {
-      removePill(update.agentId);
-      return;
-    }
-    const { id, workspaceId } = update.agent;
-    if (workspaceId) addPill(id, workspaceId);
+  return registerComposerPill(client, {
+    id: "x-comms",
+    title: "X-comms",
+    icon: "PhoneOutgoing",
+    modalTitle: "X-comms",
+    renderPill: (props) => <CrossDaemonPill {...props} />,
+    renderModal: (props) => <XCommsModalContent theme={props.theme} agentId={props.agentId} />,
   });
-
-  client.paseo.agents
-    .list()
-    .then((result: PaseoAgentListResult) => {
-      result.entries.forEach(({ agent }) => {
-        if (agent.workspaceId) addPill(agent.id, agent.workspaceId);
-      });
-    })
-    .catch((error: unknown) => {
-      console.error("x-comms: could not seed composer pills", error);
-    });
-
-  return () => {
-    unsubscribe();
-    pills.forEach((remove) => remove());
-    pills.clear();
-  };
 }
