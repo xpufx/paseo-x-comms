@@ -74,7 +74,7 @@ Implemented on this branch (`server/injection.ts`, wired in
 - Stdio config uses `process.execPath` plus the runtime-resolved bundled
   server path, so it works from git checkouts on foreign hosts.
 - No provider filter (all agents). Daemon-wide `injectionEnabled` toggle
-  in plugin settings, default off; changes apply on plugin reload.
+  in plugin settings, default on; changes apply on plugin reload.
 - Per-agent opt-out deferred. MCP server, envelope, and presence untouched.
 
 ## Layer 3: Visibility (intended vs actual)

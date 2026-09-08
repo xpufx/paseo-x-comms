@@ -47,6 +47,8 @@ export function runStartupCheck(): void {
   } else {
     log.info(`${current.daemons.length} daemon(s) at ${registryPath}, all valid`);
   }
+  const flags = resolveFeatureFlags(readUiPrefs());
+  log.info(`presence ${flags.presenceEnabled ? "enabled" : "disabled"}, injection ${flags.injectionEnabled ? "enabled" : "disabled"}`);
 }
 
 // Runs when this module evaluates in the plugin subprocess.
@@ -322,6 +324,7 @@ export async function handleDaemonProbe(input: { value: string }) {
 
 
 import { PluginStorage } from "paseo-plugin-helper/server";
+import { resolveFeatureFlags, resolveInjectionEnabled, resolvePresenceEnabled, applyFeaturePrefsUpdate } from "./settings.ts";
 import { stateDir, migrateFromRoot } from "./registry";
 
 const UI_PREFS_FILE = join(stateDir(), "plugin.json");
@@ -398,8 +401,7 @@ export async function handleUiPrefsGet() {
   const prefs = readUiPrefs();
   return {
     prereqsCollapsed: prefs.prereqsCollapsed === true,
-    presenceEnabled: prefs.presenceEnabled !== false,
-    injectionEnabled: prefs.injectionEnabled === true,
+    ...resolveFeatureFlags(prefs),
   };
 }
 
@@ -408,23 +410,21 @@ export async function handleUiPrefsSet(input: { prereqsCollapsed: boolean; prese
   writeUiPrefs({
     ...state,
     prereqsCollapsed: input.prereqsCollapsed,
-    presenceEnabled: input.presenceEnabled ?? state.presenceEnabled,
-    injectionEnabled: input.injectionEnabled ?? state.injectionEnabled,
+    ...applyFeaturePrefsUpdate(state, input),
   });
   const next = readUiPrefs();
   return {
     prereqsCollapsed: next.prereqsCollapsed === true,
-    presenceEnabled: next.presenceEnabled !== false,
-    injectionEnabled: next.injectionEnabled === true,
+    ...resolveFeatureFlags(next),
   };
 }
 
 export function presenceEnabled(): boolean {
-  return readUiPrefs().presenceEnabled !== false;
+  return resolvePresenceEnabled(readUiPrefs());
 }
 
 export function injectionEnabled(): boolean {
-  return readUiPrefs().injectionEnabled === true;
+  return resolveInjectionEnabled(readUiPrefs());
 }
 
 export async function handleSnapshotRefresh() {
