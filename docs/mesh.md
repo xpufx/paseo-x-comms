@@ -65,10 +65,17 @@ known-peer check is the approximation until then.
 
 ## Layer 2: Injection (tools by default)
 
-Not implemented. Planned shape per the helper doc: `server.before`
-("agent.create") merges the MCP server entry under a namespaced key
-(`x-comms.<serverId>`), fill-if-absent, provider filter with a logged
-fallback. Separate slice.
+Implemented on this branch (`server/injection.ts`, wired in
+`index.server.ts`):
+- `registerMcpInjection` from the helper wraps `server.before`
+  ("agent.create") with merge-preserving, non-mutating semantics.
+- Key scheme `x-comms.<serverId>` (fallback plain `x-comms` with a logged
+  warning if the local server id is unreadable).
+- Stdio config uses `process.execPath` plus the runtime-resolved bundled
+  server path, so it works from git checkouts on foreign hosts.
+- No provider filter (all agents). Daemon-wide `injectionEnabled` toggle
+  in plugin settings, default off; changes apply on plugin reload.
+- Per-agent opt-out deferred. MCP server, envelope, and presence untouched.
 
 ## Layer 3: Visibility (intended vs actual)
 

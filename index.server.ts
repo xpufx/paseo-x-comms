@@ -19,9 +19,11 @@ import {
   handlePresenceAnnounce,
   handlePresenceRetract,
   handlePresenceList,
+  injectionEnabled,
   onLocalAgentCreated,
   onLocalAgentArchived,
 } from "./server/handlers";
+import { maybeRegisterInjection, toInjectionServer } from "./server/injection";
 import {
   registryReadRpc,
   daemonAddRpc,
@@ -70,5 +72,8 @@ export default function contribute(server: PluginServerContext) {
   server.on("agent.archived", ({ agent }) => {
     void onLocalAgentArchived(agent).catch(() => {});
   });
-  return () => {};
+  const removeInjection = maybeRegisterInjection(toInjectionServer(server), { enabled: injectionEnabled() });
+  return () => {
+    removeInjection();
+  };
 }

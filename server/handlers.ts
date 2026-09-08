@@ -330,6 +330,7 @@ migrateFromRoot("paseo-x-comms-plugin.json", UI_PREFS_FILE);
 interface UiPrefsState {
   prereqsCollapsed?: boolean;
   presenceEnabled?: boolean;
+  injectionEnabled?: boolean;
   daemonIdentities?: Record<string, string>;
   daemonHostnames?: Record<string, string>;
   serverPath?: string;
@@ -398,25 +399,32 @@ export async function handleUiPrefsGet() {
   return {
     prereqsCollapsed: prefs.prereqsCollapsed === true,
     presenceEnabled: prefs.presenceEnabled !== false,
+    injectionEnabled: prefs.injectionEnabled === true,
   };
 }
 
-export async function handleUiPrefsSet(input: { prereqsCollapsed: boolean; presenceEnabled?: boolean }) {
+export async function handleUiPrefsSet(input: { prereqsCollapsed: boolean; presenceEnabled?: boolean; injectionEnabled?: boolean }) {
   const state = readUiPrefs();
   writeUiPrefs({
     ...state,
     prereqsCollapsed: input.prereqsCollapsed,
     presenceEnabled: input.presenceEnabled ?? state.presenceEnabled,
+    injectionEnabled: input.injectionEnabled ?? state.injectionEnabled,
   });
   const next = readUiPrefs();
   return {
     prereqsCollapsed: next.prereqsCollapsed === true,
     presenceEnabled: next.presenceEnabled !== false,
+    injectionEnabled: next.injectionEnabled === true,
   };
 }
 
 export function presenceEnabled(): boolean {
   return readUiPrefs().presenceEnabled !== false;
+}
+
+export function injectionEnabled(): boolean {
+  return readUiPrefs().injectionEnabled === true;
 }
 
 export async function handleSnapshotRefresh() {

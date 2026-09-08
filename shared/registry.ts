@@ -156,13 +156,13 @@ export const daemonProbeRpc = defineRpc({
 export const uiPrefsGetRpc = defineRpc({
   name: "ui.prefs.get",
   input: z.object({}),
-  output: z.object({ prereqsCollapsed: z.boolean(), presenceEnabled: z.boolean() }),
+  output: z.object({ prereqsCollapsed: z.boolean(), presenceEnabled: z.boolean(), injectionEnabled: z.boolean() }),
 });
 
 export const uiPrefsSetRpc = defineRpc({
   name: "ui.prefs.set",
-  input: z.object({ prereqsCollapsed: z.boolean(), presenceEnabled: z.boolean().optional() }),
-  output: z.object({ prereqsCollapsed: z.boolean(), presenceEnabled: z.boolean() }),
+  input: z.object({ prereqsCollapsed: z.boolean(), presenceEnabled: z.boolean().optional(), injectionEnabled: z.boolean().optional() }),
+  output: z.object({ prereqsCollapsed: z.boolean(), presenceEnabled: z.boolean(), injectionEnabled: z.boolean() }),
 });
 
 export const snapshotRefreshRpc = defineRpc({

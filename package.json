@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test mcp/test/protocol.test.mjs server/presence.test.ts"
+    "test": "node --test mcp/test/protocol.test.mjs server/presence.test.ts server/injection.test.ts"
   },
   "keywords": [
     "paseo",
@@ -27,7 +27,7 @@
     "@getpaseo/plugin": "^0.8.0-beta.1",
     "@getpaseo/protocol": "^0.8.0-beta.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "paseo-plugin-helper": "^0.4.0-beta.2",
+    "paseo-plugin-helper": "github:xpufx/paseo-plugin-helper#1dbf88d953266013d41ed28db6ced39a4a846804",
     "zod": "^4.4.3"
   },
   "devDependencies": {
