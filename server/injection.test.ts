@@ -11,6 +11,7 @@ import {
   injectionServerConfig,
   injectionServerName,
   maybeRegisterInjection,
+  resolveNodeCommand,
 } from "./injection.ts";
 
 interface StubServer extends McpInjectionServer {
@@ -110,7 +111,13 @@ describe("mcp injection", () => {
   it("builds a stdio config pointing at the bundled server", () => {
     const config = injectionServerConfig();
     assert.equal(config.type, "stdio");
-    assert.equal(config.command, process.execPath);
     assert.ok(config.args?.[0]?.endsWith("paseo-x-comms.bundled.mjs"));
+  });
+
+  it("never emits an Electron app binary as the server command", () => {
+    assert.equal(resolveNodeCommand("/opt/Paseo/Paseo"), "node");
+    assert.equal(resolveNodeCommand("/Applications/Paseo.app/Contents/MacOS/Paseo"), "node");
+    assert.equal(resolveNodeCommand("/usr/bin/node"), "/usr/bin/node");
+    assert.equal(resolveNodeCommand(process.execPath), process.execPath);
   });
 });

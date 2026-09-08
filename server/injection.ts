@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import {
   createPluginLogger,
   registerMcpInjection,
@@ -43,9 +43,22 @@ export function injectionServerName(readId: () => string | null = readLocalServe
 export function injectionServerConfig(): McpStdioInjectionConfig {
   return {
     type: "stdio",
-    command: process.execPath,
+    command: resolveNodeCommand(process.execPath),
     args: [serverPath()],
   };
+}
+
+/**
+ * Resolve a JS runtime command for spawned MCP servers. Under Electron
+ * (ELECTRON_RUN_AS_NODE) process.execPath is the app GUI binary, which
+ * cannot execute scripts, so fall back to PATH-resolved node there.
+ */
+export function resolveNodeCommand(execPath: string): string {
+  const base = basename(execPath).toLowerCase();
+  if (/^(node|bun|deno)/.test(base)) {
+    return execPath;
+  }
+  return "node";
 }
 
 export interface InjectionGate {
