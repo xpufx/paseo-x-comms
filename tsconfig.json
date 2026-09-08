@@ -17,8 +17,9 @@
   "include": [
     "*.ts",
     "*.tsx",
-    "plugin/**/*.ts",
-    "plugin/**/*.tsx"
+    "client/**/*",
+    "server/**/*",
+    "shared/**/*"
   ],
   "exclude": [
     "node_modules",

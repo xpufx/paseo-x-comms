@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFile } from "node:child_process";
-import { getSnapshotFresh, agentCountFor, refreshSnapshot, initializeSnapshot } from "./snapshot.server";
+import { createPluginLogger, safeSpawn } from "paseo-plugin-helper/server";
+import { withTimeout } from "paseo-plugin-helper/shared";
+import { getSnapshotFresh, agentCountFor, refreshSnapshot, initializeSnapshot } from "./snapshot";
 import {
   registryReadRpc,
   daemonAddRpc,
@@ -9,7 +10,7 @@ import {
   daemonRemoveRpc,
   daemonHealthRpc,
   serverCheckRpc,
-} from "./registry.shared";
+} from "../shared/registry";
 import {
   parseRegistry,
   validateDaemonHost,
@@ -17,32 +18,33 @@ import {
   currentRegistryPath,
   readRegistry,
   mutateRegistry,
-} from "./registry.server";
-import { serverPath } from "./server-status.server";
+} from "./registry";
+import { serverPath } from "./server-status";
 
 // Startup check: validate whatever is already in the registry as soon as the
 // plugin backend loads, so a corrupt or invalid config is caught early and
 // visible in `paseo plugin logs`.
+const log = createPluginLogger("paseo-x-comms");
 export function runStartupCheck(): void {
   const registryPath = currentRegistryPath();
   const current = readRegistry(registryPath);
   if (!current.exists) {
-    console.log(`[registry] no registry at ${registryPath} (will be created on first save)`);
+    log.info(`no registry at ${registryPath} (will be created on first save)`);
     return;
   }
   if (!current.ok) {
-    console.error(`[registry] existing registry at ${registryPath} is corrupt: ${current.parseError}`);
+    log.error(`existing registry at ${registryPath} is corrupt: ${current.parseError}`);
     return;
   }
   const invalid = current.daemons.filter((daemon) => !daemon.valid);
   if (invalid.length > 0) {
-    console.error(
-      `[registry] ${invalid.length} invalid entr${invalid.length === 1 ? "y" : "ies"} at ${registryPath}: ${invalid
+    log.error(
+      `${invalid.length} invalid entr${invalid.length === 1 ? "y" : "ies"} at ${registryPath}: ${invalid
         .map((daemon) => `${daemon.name} (${daemon.error})`)
         .join(", ")}`,
     );
   } else {
-    console.log(`[registry] ${current.daemons.length} daemon(s) at ${registryPath}, all valid`);
+    log.info(`${current.daemons.length} daemon(s) at ${registryPath}, all valid`);
   }
 }
 
@@ -151,7 +153,7 @@ export async function handleIntrospectAgents() {
   };
 }
 
-import { McpStdioClient } from "./mcp-client.server";
+import { McpStdioClient } from "./mcp-client";
 
 // Sends go through the bundled paseo-x-comms server over stdio MCP,
 // so every message carries the meta envelope (sender identity) stamped by the
@@ -289,12 +291,13 @@ export async function handleConversationSend(input: { daemon: string; agentId: s
 const PROBE_TIMEOUT_MS = 8000;
 
 function runProbe(value: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    execFile("paseo", ["ls", "--host", value, "--json"], { timeout: PROBE_TIMEOUT_MS }, (error, _stdout, stderr) => {
-      if (error) reject(new Error((stderr || error.message).trim()));
-      else resolve();
-    });
-  });
+  return withTimeout(
+    safeSpawn("paseo", ["ls", "--host", value, "--json"], { timeoutMs: PROBE_TIMEOUT_MS }).then((r) => {
+      if (r.code !== 0) throw new Error((r.stderr || `exit ${r.code}`).trim());
+    }),
+    PROBE_TIMEOUT_MS,
+    "daemon probe",
+  );
 }
 
 export async function handleDaemonProbe(input: { value: string }) {
@@ -317,8 +320,8 @@ export async function handleDaemonProbe(input: { value: string }) {
 
 
 
-import { readFileSync as readPrefsFile, writeFileSync as writePrefsFile, existsSync as prefsExists, renameSync } from "node:fs";
-import { stateDir, migrateFromRoot } from "./registry.server";
+import { PluginStorage } from "paseo-plugin-helper/server";
+import { stateDir, migrateFromRoot } from "./registry";
 
 const UI_PREFS_FILE = join(stateDir(), "plugin.json");
 migrateFromRoot("paseo-x-comms-plugin.json", UI_PREFS_FILE);
@@ -331,16 +334,19 @@ interface UiPrefsState {
   serverPathSet?: boolean;
 }
 
+const uiPrefsStore = new PluginStorage<UiPrefsState>("paseo-x-comms", "plugin.json", { defaultData: {} });
+
 function readUiPrefs(): UiPrefsState {
   try {
-    if (prefsExists(UI_PREFS_FILE)) {
-      const parsed = JSON.parse(readPrefsFile(UI_PREFS_FILE, "utf8")) as UiPrefsState;
-      if (parsed && typeof parsed === "object") return parsed;
-    }
+    return uiPrefsStore.read();
   } catch (err) {
-    console.error(`[plugin] corrupt ${UI_PREFS_FILE}, ignoring: ${err instanceof Error ? err.message : String(err)}`);
+    log.error(`corrupt ${uiPrefsStore.filePath}, ignoring: ${err instanceof Error ? err.message : String(err)}`);
   }
   return {};
+}
+
+function writeUiPrefs(state: UiPrefsState): void {
+  uiPrefsStore.write(state);
 }
 
 export function identityFor(daemon: string): string | null {
@@ -381,10 +387,7 @@ export async function handleIdentitySync() {
     if (info?.serverId) identities[daemon.name] = info.serverId;
     if (info?.hostname) hostnames[daemon.name] = info.hostname;
   }
-  writePrefsFile(UI_PREFS_FILE, JSON.stringify({ ...state, daemonIdentities: identities, daemonHostnames: hostnames }, null, 2) + "\n", {
-    encoding: "utf8",
-    mode: 0o600,
-  });
+  writeUiPrefs({ ...state, daemonIdentities: identities, daemonHostnames: hostnames });
   return { identities, hostnames };
 }
 
@@ -394,10 +397,7 @@ export async function handleUiPrefsGet() {
 
 export async function handleUiPrefsSet(input: { prereqsCollapsed: boolean }) {
   const state = readUiPrefs();
-  writePrefsFile(UI_PREFS_FILE, JSON.stringify({ ...state, prereqsCollapsed: input.prereqsCollapsed }, null, 2) + "\n", {
-    encoding: "utf8",
-    mode: 0o600,
-  });
+  writeUiPrefs({ ...state, prereqsCollapsed: input.prereqsCollapsed });
   return { prereqsCollapsed: input.prereqsCollapsed };
 }
 
@@ -407,14 +407,9 @@ export async function handleSnapshotRefresh() {
 }
 
 async function runPaseoDumpJson(args: string[]): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    execFile("paseo", args, { timeout: 20000 }, (error, stdout, stderr) => {
-      if (error) reject(new Error((stderr || error.message).trim().slice(0, 200)));
-      else {
-        try { resolve(JSON.parse(stdout)); } catch { reject(new Error("non-JSON output")); }
-      }
-    });
-  });
+  const r = await withTimeout(safeSpawn("paseo", args, { timeoutMs: 20000 }), 20000, "paseo dump");
+  if (r.code !== 0) throw new Error((r.stderr || `exit ${r.code}`).trim().slice(0, 200));
+  try { return JSON.parse(r.stdout); } catch { throw new Error("non-JSON output"); }
 }
 
 function parseOffer(value: string): {

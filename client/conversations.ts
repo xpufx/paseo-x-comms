@@ -1,4 +1,4 @@
-import { usePaseo } from "@getpaseo/plugin";
+import { usePaseo } from "@getpaseo/plugin/client";
 import { parseEnvelope, type CrossDaemonEnvelope } from "./x-comms-timeline";
 
 type PaseoApi = ReturnType<typeof usePaseo>;

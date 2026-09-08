@@ -1,4 +1,4 @@
-# Dependencies (recursive: covers mcp/ and plugin/)
+node_modules
 node_modules/
 
 # Local operational docs — kept on disk, never committed
