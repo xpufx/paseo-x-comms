@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test mcp/test/protocol.test.mjs"
+    "test": "node --test mcp/test/protocol.test.mjs server/presence.test.ts"
   },
   "keywords": [
     "paseo",

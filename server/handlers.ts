@@ -18,6 +18,7 @@ import {
   currentRegistryPath,
   readRegistry,
   mutateRegistry,
+  deriveHostFromValue,
 } from "./registry";
 import { serverPath } from "./server-status";
 
@@ -328,6 +329,7 @@ migrateFromRoot("paseo-x-comms-plugin.json", UI_PREFS_FILE);
 
 interface UiPrefsState {
   prereqsCollapsed?: boolean;
+  presenceEnabled?: boolean;
   daemonIdentities?: Record<string, string>;
   daemonHostnames?: Record<string, string>;
   serverPath?: string;
@@ -392,13 +394,29 @@ export async function handleIdentitySync() {
 }
 
 export async function handleUiPrefsGet() {
-  return { prereqsCollapsed: readUiPrefs().prereqsCollapsed === true };
+  const prefs = readUiPrefs();
+  return {
+    prereqsCollapsed: prefs.prereqsCollapsed === true,
+    presenceEnabled: prefs.presenceEnabled !== false,
+  };
 }
 
-export async function handleUiPrefsSet(input: { prereqsCollapsed: boolean }) {
+export async function handleUiPrefsSet(input: { prereqsCollapsed: boolean; presenceEnabled?: boolean }) {
   const state = readUiPrefs();
-  writeUiPrefs({ ...state, prereqsCollapsed: input.prereqsCollapsed });
-  return { prereqsCollapsed: input.prereqsCollapsed };
+  writeUiPrefs({
+    ...state,
+    prereqsCollapsed: input.prereqsCollapsed,
+    presenceEnabled: input.presenceEnabled ?? state.presenceEnabled,
+  });
+  const next = readUiPrefs();
+  return {
+    prereqsCollapsed: next.prereqsCollapsed === true,
+    presenceEnabled: next.presenceEnabled !== false,
+  };
+}
+
+export function presenceEnabled(): boolean {
+  return readUiPrefs().presenceEnabled !== false;
 }
 
 export async function handleSnapshotRefresh() {
@@ -576,5 +594,192 @@ export async function handleDaemonDump(input: { daemon: string }) {
     };
   } catch (cause) {
     return notReachedResult(input.daemon, cause instanceof Error ? cause.message : String(cause), offer, transport);
+  }
+}
+
+import { randomUUID } from "node:crypto";
+import {
+  applyAnnounce,
+  applyRetract,
+  pendingForPeer,
+  queueRetract,
+  readPresence,
+  sweepExpired,
+  writePresence,
+  type PresenceBirth,
+} from "./presence";
+import { invokePeerRpc, localServerId, resolvePeerTarget, type PeerTarget } from "./peer-channel";
+
+/**
+ * ServerIds this daemon has explicitly paired with (seed links). Inbound
+ * presence is only accepted from these; anything else is dropped. This is
+ * the receiver-side approximation of link identity: pairing is explicit,
+ * gossip never introduces new links.
+ */
+function knownPeerServerIds(): Set<string> {
+  const ids = new Set<string>();
+  for (const daemon of readRegistry(currentRegistryPath()).daemons) {
+    if (!daemon.valid) continue;
+    const id = deriveHostFromValue(daemon.value);
+    if (id) ids.add(id);
+  }
+  return ids;
+}
+
+function validPeerTargets(): PeerTarget[] {
+  const targets: PeerTarget[] = [];
+  for (const daemon of readRegistry(currentRegistryPath()).daemons) {
+    if (!daemon.valid) continue;
+    try {
+      targets.push(resolvePeerTarget(daemon.name, daemon.value));
+    } catch (cause) {
+      log.error(`presence: skipping undialable peer '${daemon.name}': ${cause instanceof Error ? cause.message : String(cause)}`);
+    }
+  }
+  return targets;
+}
+
+export async function handlePresenceAnnounce(input: { messageId: string; entries: PresenceBirth[] }) {
+  const known = knownPeerServerIds();
+  const state = readPresence();
+  let accepted = 0;
+  let rejected = 0;
+  for (const entry of input.entries.slice(0, 500)) {
+    if (!known.has(entry.serverId)) {
+      rejected += 1;
+      continue;
+    }
+    const outcome = applyAnnounce(state, entry, `${input.messageId}:${entry.serverId}/${entry.agentId}`, "remote");
+    if (outcome.result === "accepted") accepted += 1;
+    else rejected += 1;
+  }
+  writePresence(state);
+  return { accepted, rejected };
+}
+
+export async function handlePresenceRetract(input: { messageId: string; serverId: string; agentId: string; timestamp: string }) {
+  const known = knownPeerServerIds();
+  if (!known.has(input.serverId)) return { applied: false };
+  const state = readPresence();
+  const outcome = applyRetract(state, input.serverId, input.agentId, input.timestamp, input.messageId);
+  writePresence(state);
+  return { applied: outcome.applied };
+}
+
+export async function handlePresenceList() {
+  const state = readPresence();
+  const swept = sweepExpired(state);
+  if (swept.expiredLive.length > 0 || swept.expiredTombstones.length > 0) {
+    log.error(
+      `presence: TTL sweep fired (live: ${swept.expiredLive.join(", ") || "none"}; tombstones: ${swept.expiredTombstones.join(", ") || "none"}). ` +
+      `TTL is a safety net only; announcements or retracts stopped flowing.`,
+    );
+    writePresence(state);
+  }
+  return {
+    live: Object.values(state.live),
+    tombstones: Object.values(state.tombstones),
+    pendingRetracts: state.pendingRetracts.length,
+  };
+}
+
+async function flushPendingRetracts(target: PeerTarget): Promise<void> {
+  const state = readPresence();
+  const pending = pendingForPeer(state, target.name);
+  for (const item of pending) {
+    try {
+      await invokePeerRpc(target, "presence.retract", {
+        messageId: item.messageId,
+        serverId: item.serverId,
+        agentId: item.agentId,
+        timestamp: item.timestamp,
+      });
+      state.pendingRetracts = state.pendingRetracts.filter((p) => p.messageId !== item.messageId);
+      writePresence(state);
+    } catch (cause) {
+      item.attempts += 1;
+      writePresence(state);
+      log.error(`presence: queued retract still failing for '${target.name}': ${cause instanceof Error ? cause.message : String(cause)}`);
+      return;
+    }
+  }
+}
+
+/**
+ * Local hook: buffer a birth and announce it to every dialable peer.
+ * Retries for queued retracts piggyback on the same outbound pass.
+ * Missed births while a peer is offline are not backfilled in this slice.
+ */
+export async function onLocalAgentCreated(agent: { id: string; title: string | null; provider: string }): Promise<void> {
+  if (!presenceEnabled()) return;
+  let self: string;
+  try {
+    self = await localServerId();
+  } catch (cause) {
+    log.error(`presence: cannot announce birth without local serverId: ${cause instanceof Error ? cause.message : String(cause)}`);
+    return;
+  }
+  const now = new Date().toISOString();
+  const birth: PresenceBirth = {
+    serverId: self,
+    agentId: agent.id,
+    name: agent.title ?? agent.id.slice(0, 8),
+    provider: agent.provider,
+    timestamp: now,
+  };
+  const state = readPresence();
+  applyAnnounce(state, birth, randomUUID(), "local", now);
+  writePresence(state);
+  for (const target of validPeerTargets()) {
+    await flushPendingRetracts(target);
+    try {
+      await invokePeerRpc(target, "presence.announce", { messageId: randomUUID(), entries: [birth] });
+    } catch (cause) {
+      log.error(`presence: announce to '${target.name}' failed: ${cause instanceof Error ? cause.message : String(cause)}`);
+    }
+  }
+}
+
+/**
+ * Local hook: tombstone immediately, retract everywhere now, queue the
+ * retract for peers that are offline and retry on the next outbound pass.
+ */
+export async function onLocalAgentArchived(agent: { id: string }): Promise<void> {
+  if (!presenceEnabled()) return;
+  let self: string;
+  try {
+    self = await localServerId();
+  } catch (cause) {
+    log.error(`presence: cannot retract without local serverId: ${cause instanceof Error ? cause.message : String(cause)}`);
+    return;
+  }
+  const now = new Date().toISOString();
+  const state = readPresence();
+  applyRetract(state, self, agent.id, now, randomUUID());
+  writePresence(state);
+  for (const target of validPeerTargets()) {
+    await flushPendingRetracts(target);
+    const messageId = randomUUID();
+    try {
+      await invokePeerRpc(target, "presence.retract", {
+        messageId,
+        serverId: self,
+        agentId: agent.id,
+        timestamp: now,
+      });
+    } catch (cause) {
+      log.error(`presence: retract to '${target.name}' failed, queued: ${cause instanceof Error ? cause.message : String(cause)}`);
+      const retry = readPresence();
+      queueRetract(retry, {
+        peer: target.name,
+        serverId: self,
+        agentId: agent.id,
+        timestamp: now,
+        messageId,
+        queuedAt: now,
+        attempts: 1,
+      });
+      writePresence(retry);
+    }
   }
 }

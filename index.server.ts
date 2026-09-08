@@ -16,6 +16,11 @@ import {
   handleSnapshotRefresh,
   handleDaemonDump,
   handleIdentitySync,
+  handlePresenceAnnounce,
+  handlePresenceRetract,
+  handlePresenceList,
+  onLocalAgentCreated,
+  onLocalAgentArchived,
 } from "./server/handlers";
 import {
   registryReadRpc,
@@ -34,6 +39,9 @@ import {
   snapshotRefreshRpc,
   daemonDumpRpc,
   identitySyncRpc,
+  presenceAnnounceRpc,
+  presenceRetractRpc,
+  presenceListRpc,
 } from "./shared/registry";
 
 export default function contribute(server: PluginServerContext) {
@@ -53,5 +61,14 @@ export default function contribute(server: PluginServerContext) {
   server.handle(snapshotRefreshRpc, handleSnapshotRefresh);
   server.handle(daemonDumpRpc, handleDaemonDump);
   server.handle(identitySyncRpc, handleIdentitySync);
+  server.handle(presenceAnnounceRpc, handlePresenceAnnounce);
+  server.handle(presenceRetractRpc, handlePresenceRetract);
+  server.handle(presenceListRpc, handlePresenceList);
+  server.on("agent.created", ({ agent }) => {
+    void onLocalAgentCreated(agent).catch(() => {});
+  });
+  server.on("agent.archived", ({ agent }) => {
+    void onLocalAgentArchived(agent).catch(() => {});
+  });
   return () => {};
 }

@@ -156,19 +156,67 @@ export const daemonProbeRpc = defineRpc({
 export const uiPrefsGetRpc = defineRpc({
   name: "ui.prefs.get",
   input: z.object({}),
-  output: z.object({ prereqsCollapsed: z.boolean() }),
+  output: z.object({ prereqsCollapsed: z.boolean(), presenceEnabled: z.boolean() }),
 });
 
 export const uiPrefsSetRpc = defineRpc({
   name: "ui.prefs.set",
-  input: z.object({ prereqsCollapsed: z.boolean() }),
-  output: z.object({ prereqsCollapsed: z.boolean() }),
+  input: z.object({ prereqsCollapsed: z.boolean(), presenceEnabled: z.boolean().optional() }),
+  output: z.object({ prereqsCollapsed: z.boolean(), presenceEnabled: z.boolean() }),
 });
 
 export const snapshotRefreshRpc = defineRpc({
   name: "snapshot.refresh",
   input: z.object({}),
   output: z.object({ updatedAt: z.string() }),
+});
+
+const PresenceBirthSchema = z.object({
+  serverId: z.string().min(1).max(128),
+  agentId: z.string().min(1).max(128),
+  name: z.string().max(256),
+  provider: z.string().max(128),
+  timestamp: z.string().min(1),
+});
+
+export const presenceAnnounceRpc = defineRpc({
+  name: "presence.announce",
+  input: z.object({
+    messageId: z.string().min(1).max(128),
+    entries: z.array(PresenceBirthSchema).max(500),
+  }),
+  output: z.object({
+    accepted: z.number(),
+    rejected: z.number(),
+  }),
+});
+
+export const presenceRetractRpc = defineRpc({
+  name: "presence.retract",
+  input: z.object({
+    messageId: z.string().min(1).max(128),
+    serverId: z.string().min(1).max(128),
+    agentId: z.string().min(1).max(128),
+    timestamp: z.string().min(1),
+  }),
+  output: z.object({ applied: z.boolean() }),
+});
+
+export const presenceListRpc = defineRpc({
+  name: "presence.list",
+  input: z.object({}),
+  output: z.object({
+    live: z.array(PresenceBirthSchema.extend({
+      origin: z.enum(["local", "remote"]),
+      lastSeenAt: z.string(),
+    })),
+    tombstones: z.array(z.object({
+      serverId: z.string(),
+      agentId: z.string(),
+      retractedAt: z.string(),
+    })),
+    pendingRetracts: z.number(),
+  }),
 });
 
 export const daemonDumpRpc = defineRpc({
