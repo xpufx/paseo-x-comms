@@ -51,11 +51,9 @@ export function runStartupCheck(): void {
   log.info(`presence ${flags.presenceEnabled ? "enabled" : "disabled"}, injection ${flags.injectionEnabled ? "enabled" : "disabled"}`);
 }
 
-// Runs when this module evaluates in the plugin subprocess.
-runStartupCheck();
-// Prime the fleet snapshot so daemon health, agent counts, and the Introduce
-// pickers are ready immediately instead of fetching lazily on first request.
-initializeSnapshot();
+// Runs when this module has fully evaluated (invoked at the bottom of this
+// file): module-level const initializers below must exist first, since the
+// daemon compiles to CJS where top-level calls execute in source order.
 
 export function hostnameFor(daemon: string): string | null {
   const hostnames = readUiPrefs().daemonHostnames ?? {};
@@ -346,7 +344,7 @@ function readUiPrefs(): UiPrefsState {
   try {
     return uiPrefsStore.read();
   } catch (err) {
-    log.error(`corrupt ${uiPrefsStore.filePath}, ignoring: ${err instanceof Error ? err.message : String(err)}`);
+    log.error(`corrupt ${UI_PREFS_FILE}, ignoring: ${err instanceof Error ? err.message : String(err)}`);
   }
   return {};
 }
@@ -791,3 +789,11 @@ export async function onLocalAgentArchived(agent: { id: string }): Promise<void>
     }
   }
 }
+
+// Runs when this module has fully evaluated. Placed last so every
+// module-level const above (stores, registries) exists before the first
+// startup read in the daemon's CJS-compiled bundle.
+runStartupCheck();
+// Prime the fleet snapshot so daemon health, agent counts, and the Introduce
+// pickers are ready immediately instead of fetching lazily on first request.
+initializeSnapshot();
