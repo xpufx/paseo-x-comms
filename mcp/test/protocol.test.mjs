@@ -219,7 +219,7 @@ test("send stamps a structured sender-meta envelope and reaches the remote agent
     assert.equal(sent.promptHead.split("\n\n")[1], "hello there", "prompt must stay prose");
     const meta = metaOf(sent.promptHead);
     assert.equal(meta.xComms.version, 4);
-    assert.equal(meta.xComms.type, "x-comms.incoming_message");
+    assert.equal(meta.xComms.type, "x-comms.message");
     assert.equal(meta.xComms.direction, "outgoing");
     assert.equal(meta.xComms.sender.agentId, "agent-test-1");
     assert.equal(meta.xComms.sender.agentName, "fake-agent");

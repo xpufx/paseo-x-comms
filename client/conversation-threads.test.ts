@@ -11,7 +11,7 @@ function envelope(senderAgentId: string, sentAt: string): string {
   const payload = {
     xComms: {
       version: 4,
-      type: "x-comms.incoming_message",
+      type: "x-comms.message",
       direction: "outgoing",
       sender: {
         agentId: senderAgentId,

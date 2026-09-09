@@ -30,6 +30,31 @@ export const EnvelopeSchema = z.object({
 
 export type CrossDaemonEnvelope = z.infer<typeof EnvelopeSchema>;
 
+export type MessageDirection = "incoming" | "outgoing";
+
+/**
+ * Viewer-relative direction. The wire envelope stamps direction "outgoing"
+ * from the sender's side, so only a message from self counts as user-sent.
+ */
+export function viewerDirection(env: CrossDaemonEnvelope, viewerAgentId: string): MessageDirection {
+  const senderId = env.xComms.sender.agentId;
+  return senderId !== null && senderId === viewerAgentId ? "outgoing" : "incoming";
+}
+
+export interface CardSignal {
+  direction: MessageDirection;
+  userSent: boolean;
+}
+
+/**
+ * Pure card signal: red is reserved for user-sent messages only. Peer and
+ * agent arrivals render neutral. Never derive red from envelope defaults.
+ */
+export function cardSignal(env: CrossDaemonEnvelope, viewerAgentId: string): CardSignal {
+  const direction = viewerDirection(env, viewerAgentId);
+  return { direction, userSent: direction === "outgoing" };
+}
+
 /**
  * Splits a message body into its x-comms envelope (if present) and the
  * remaining human-visible text. The envelope is a prefix our server stamps on

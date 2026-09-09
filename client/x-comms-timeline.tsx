@@ -3,7 +3,7 @@ import { type PluginTimelineItemProps, type PluginTimelineTransformerContributio
 import { Icon } from "@getpaseo/plugin/client/react-native";
 import { useMemo } from "react";
 import { Text, View } from "react-native";
-import { EnvelopeSchema, parseEnvelope, type CrossDaemonEnvelope } from "./envelope";
+import { EnvelopeSchema, cardSignal, parseEnvelope, type CrossDaemonEnvelope } from "./envelope";
 import { formatPeerDisplay, usePeerAlias } from "./peer-label";
 import { ViaXComms } from "./via-x-comms";
 
@@ -20,27 +20,15 @@ function senderLabel(env: CrossDaemonEnvelope, alias: string | null): string {
   return `${name} @ ${formatPeerDisplay(alias, s.daemonServerId)}`;
 }
 
-export type MessageDirection = "incoming" | "outgoing";
-
-/**
- * Viewer-relative direction. The wire envelope always stamps
- * direction "outgoing" from the sender's side, so the renderer compares
- * the sender id to the viewing agent: anything not from self arrived here.
- */
-export function viewerDirection(env: CrossDaemonEnvelope, viewerAgentId: string): MessageDirection {
-  const senderId = env.xComms.sender.agentId;
-  return senderId !== null && senderId === viewerAgentId ? "outgoing" : "incoming";
-}
-
 function CrossDaemonMessage({ theme, agentId, item }: PluginTimelineItemProps<z.infer<typeof ItemSchema>>) {
   const alias = usePeerAlias(item.data.envelope.xComms.sender.daemonServerId);
   const label = useMemo(
     () => senderLabel(item.data.envelope, alias),
     [item.data.envelope, alias],
   );
-  const direction = viewerDirection(item.data.envelope, agentId);
+  const { direction, userSent } = cardSignal(item.data.envelope, agentId);
   const incoming = direction === "incoming";
-  const signalColor = incoming ? theme.colors.statusDanger : theme.colors.accent;
+  const signalColor = userSent ? theme.colors.statusDanger : theme.colors.foregroundMuted;
   return (
     <View style={{ paddingVertical: 4 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>

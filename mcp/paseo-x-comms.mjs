@@ -156,7 +156,10 @@ async function senderMetaBlock(signal, target = {}, sender = {}) {
   const envelope = {
     xComms: {
       version: 4,
-      type: "x-comms.incoming_message",
+      // Neutral type: at stamp time the message is leaving, not arriving.
+      // Direction of travel lives in `direction`; viewers derive
+      // incoming vs outgoing by comparing sender.agentId to self.
+      type: "x-comms.message",
       // Direction of travel as stamped by the sender. Every message leaves
       // its sender, so this is always "outgoing" on the wire; viewers
       // derive incoming vs outgoing by comparing sender.agentId to self.
