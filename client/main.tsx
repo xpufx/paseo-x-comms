@@ -5,6 +5,7 @@ import { Clipboard, Pressable, ScrollView, Text, TextInput, View } from "react-n
 import { Modal } from "@getpaseo/plugin/client/react-native";
 import { truncate } from "paseo-plugin-helper/shared";
 import { Badge, EmptyState, StatusDot } from "paseo-plugin-helper/client";
+import { formatPeerDisplay } from "./peer-label";
 import {
   registryReadRpc,
   daemonAddRpc,
@@ -394,6 +395,35 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
     return map;
   }, [health.data]);
 
+  const serverIdByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const daemon of read.data?.daemons ?? []) {
+      if (daemon.serverId) map.set(daemon.name, daemon.serverId);
+    }
+    return map;
+  }, [read.data]);
+
+  const aliasByServerId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const daemon of read.data?.daemons ?? []) {
+      if (daemon.serverId) map.set(daemon.serverId, daemon.name);
+    }
+    return map;
+  }, [read.data]);
+
+  const peerLabelForName = useCallback(
+    (name: string) => formatPeerDisplay(name, serverIdByName.get(name) ?? null),
+    [serverIdByName],
+  );
+
+  const sendTargetLabel = useCallback(
+    (daemon: string) => {
+      if (daemon.startsWith("srv_")) return formatPeerDisplay(aliasByServerId.get(daemon) ?? null, daemon);
+      return formatPeerDisplay(daemon, serverIdByName.get(daemon) ?? null);
+    },
+    [aliasByServerId, serverIdByName],
+  );
+
   return (
     <ScrollView
       style={styles.screen}
@@ -518,12 +548,9 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
               <View style={styles.row}>
                 <View style={{ flexShrink: 1 }}>
                   <View style={{ flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", columnGap: 8 }}>
-                    <Text style={styles.rowName} selectable>{daemon.name}</Text>
+                    <Text style={styles.rowName} selectable>{formatPeerDisplay(daemon.name, daemon.serverId)}</Text>
                     {daemon.hostname && daemon.hostname !== daemon.name ? (
                       <Text style={styles.rowMeta} selectable>{daemon.hostname}</Text>
-                    ) : null}
-                    {daemon.serverId ? (
-                      <Text style={styles.rowMeta} selectable>{daemon.serverId}</Text>
                     ) : null}
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -605,9 +632,8 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
             if (!d) return null;
             return (
               <>
-                <Text style={styles.mono} selectable>{d.name}{d.reached ? " (reached)" : " (unreachable)"} · transport: {String(d.transport ?? "-")}</Text>
+                <Text style={styles.mono} selectable>{formatPeerDisplay(d.name, d.serverId)}{d.reached ? " (reached)" : " (unreachable)"} · transport: {String(d.transport ?? "-")}</Text>
                 {d.error ? <Text style={styles.error}>{d.error}</Text> : null}
-                {d.serverId ? <Text style={styles.mono} selectable>serverId: {d.serverId}</Text> : null}
                 {d.hostname ? <Text style={styles.mono} selectable>hostname: {d.hostname}</Text> : null}
                 {d.version ? <Text style={styles.mono} selectable>version: {d.version}{d.desktopManaged ? " (desktop-managed)" : ""}</Text> : null}
                 {d.listen ? <Text style={styles.mono} selectable>listen: {d.listen}</Text> : null}
@@ -742,7 +768,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
                     {introspect.data?.daemons.map((daemon) => (
                       <View key={daemon.name}>
                         <Text style={styles.pickerGroup}>
-                          {daemon.reachable ? daemon.name : `${daemon.name} (unreachable)`}
+                          {daemon.reachable ? peerLabelForName(daemon.name) : `${peerLabelForName(daemon.name)} (unreachable)`}
                         </Text>
                         {daemon.projects.map((project) => (
                           <View key={`${daemon.name}-${project.project}`}>
@@ -814,7 +840,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
       {introduce.data ? (
         introduce.data.sends.map((send) => (
           <Text key={send.agentId} style={send.ok ? styles.ok : styles.error}>
-            {send.ok ? `sent to ${send.daemon}/${send.agentId}` : `failed ${send.daemon}/${send.agentId}: ${send.error}`}
+            {send.ok ? `sent to ${sendTargetLabel(send.daemon)}/${send.agentId}` : `failed ${sendTargetLabel(send.daemon)}/${send.agentId}: ${send.error}`}
           </Text>
         ))
       ) : null}

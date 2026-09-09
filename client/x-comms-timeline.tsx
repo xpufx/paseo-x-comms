@@ -3,6 +3,7 @@ import { type PluginTimelineItemProps, type PluginTimelineTransformerContributio
 import { Icon } from "@getpaseo/plugin/client/react-native";
 import { useMemo } from "react";
 import { Text, View } from "react-native";
+import { formatPeerDisplay, usePeerAlias } from "./peer-label";
 
 const META_PREFIX = "[x-comms] ";
 
@@ -54,15 +55,18 @@ const ItemSchema = z.object({
   body: z.string(),
 });
 
-function senderLabel(env: CrossDaemonEnvelope): string {
+function senderLabel(env: CrossDaemonEnvelope, alias: string | null): string {
   const s = env.xComms.sender;
   const name = s.agentName ?? s.agentId ?? "unknown agent";
-  const daemon = s.daemonServerId ?? s.host ?? "remote";
-  return `${name} @ ${daemon}`;
+  return `${name} @ ${formatPeerDisplay(alias, s.daemonServerId)}`;
 }
 
 function CrossDaemonMessage({ theme, item }: PluginTimelineItemProps<z.infer<typeof ItemSchema>>) {
-  const label = useMemo(() => senderLabel(item.data.envelope), [item.data.envelope]);
+  const alias = usePeerAlias(item.data.envelope.xComms.sender.daemonServerId);
+  const label = useMemo(
+    () => senderLabel(item.data.envelope, alias),
+    [item.data.envelope, alias],
+  );
   return (
     <View style={{ paddingVertical: 4 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>

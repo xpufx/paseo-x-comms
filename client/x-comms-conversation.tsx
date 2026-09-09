@@ -2,14 +2,19 @@ import { usePaseo, useRpc } from "@getpaseo/plugin/client";
 import type { PluginTheme } from "@getpaseo/plugin";
 import { Modal } from "@getpaseo/plugin/client/react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Clipboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { conversationSendRpc, introspectAgentsRpc } from "../shared/registry";
+import { conversationSendRpc, introspectAgentsRpc, registryReadRpc } from "../shared/registry";
 import { deriveConversationThreads, deriveConversations, type ConversationMessage, type ConversationPartner, type ConversationThread } from "./conversations";
+import { formatCounterparty, formatPeerDisplay, splitCounterparty, useCounterpartyLabel, usePeerDisplay, type CounterpartyRef } from "./peer-label";
 
 const draftCache = new Map<string, string>();
 const targetCache = new Map<string, ConversationPartner | null>();
 const sentCache = new Map<string, Map<string, ConversationMessage[]>>();
+
+function PeerText({ counterparty }: { counterparty: CounterpartyRef }) {
+  return <>{useCounterpartyLabel(counterparty)}</>;
+}
 
 /**
  * Reactive hook: refresh an agent's conversation queries whenever the agent
@@ -43,6 +48,40 @@ export function CrossDaemonConversation({
   const paseo = usePaseo();
   const callSend = useRpc(conversationSendRpc);
   const callIntrospect = useRpc(introspectAgentsRpc);
+  const callRegistryRead = useRpc(registryReadRpc);
+  const registry = useQuery({
+    queryKey: ["registry-read"],
+    queryFn: () => callRegistryRead({}),
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
+  });
+  const serverIdByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const daemon of registry.data?.daemons ?? []) {
+      if (daemon.serverId) map.set(daemon.name, daemon.serverId);
+    }
+    return map;
+  }, [registry.data]);
+  const aliasByServerId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const daemon of registry.data?.daemons ?? []) {
+      if (daemon.serverId) map.set(daemon.serverId, daemon.name);
+    }
+    return map;
+  }, [registry.data]);
+  const peerLabelForCounterparty = useCallback(
+    (cp: CounterpartyRef) => {
+      const { alias, serverId } = splitCounterparty(cp);
+      const id = serverId ?? (alias ? serverIdByName.get(alias) ?? null : null);
+      const name = alias ?? (id ? aliasByServerId.get(id) ?? null : null);
+      return formatPeerDisplay(name, id);
+    },
+    [serverIdByName, aliasByServerId],
+  );
+  const peerLabelForName = useCallback(
+    (name: string) => formatPeerDisplay(name, serverIdByName.get(name) ?? null),
+    [serverIdByName],
+  );
   const [draft, setDraft] = useState(() => draftCache.get(agentId) ?? "");
   const [target, setTarget] = useState<ConversationPartner | null>(() => targetCache.get(agentId) ?? null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -92,7 +131,7 @@ export function CrossDaemonConversation({
         byAgent.set(target.conversationId, [...list, msg]);
         sentCache.set(agentId, byAgent);
         setSentTick((x) => x + 1);
-        setLastSent({ at: new Date().toLocaleTimeString(), to: `${target.counterparty.agentName ?? target.counterparty.agentId} @ ${target.counterparty.daemon ?? target.counterparty.daemonServerId}` });
+        setLastSent({ at: new Date().toLocaleTimeString(), to: `${target.counterparty.agentName ?? target.counterparty.agentId} @ ${peerLabelForCounterparty(target.counterparty)}` });
         setDraftCached("");
         void queryClient.invalidateQueries({ queryKey: ["x-comms-conversations", agentId] });
         void queryClient.invalidateQueries({ queryKey: ["x-comms-threads", agentId] });
@@ -151,7 +190,7 @@ export function CrossDaemonConversation({
                 {c.counterparty.agentName ?? c.counterparty.agentId ?? "unknown"}
               </Text>
               <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12 }}>
-                {c.counterparty.daemon ?? c.counterparty.daemonServerId ?? "?"} · {c.messageCount} msgs
+                <PeerText counterparty={c.counterparty} /> · {c.messageCount} msgs
               </Text>
             </Pressable>
           ))}
@@ -163,7 +202,7 @@ export function CrossDaemonConversation({
       )}
       {target ? (
         <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12, marginBottom: 8 }}>
-          To: {target.counterparty.agentName ?? target.counterparty.agentId} on {target.counterparty.daemon ?? target.counterparty.daemonServerId}
+          To: {target.counterparty.agentName ?? target.counterparty.agentId} on <PeerText counterparty={target.counterparty} />
         </Text>
       ) : null}
       {target ? (
@@ -254,7 +293,7 @@ export function CrossDaemonConversation({
             {(introspect.data?.daemons ?? []).map((daemon) => (
               <View key={daemon.name}>
                 <Text style={{ color: daemon.reachable ? theme.colors.accent : theme.colors.foregroundMuted, fontSize: 12, fontWeight: "700" as const, marginTop: 10, textTransform: "uppercase" as const }}>
-                  {daemon.reachable ? daemon.name : `${daemon.name} (unreachable)`}
+                  {daemon.reachable ? peerLabelForName(daemon.name) : `${peerLabelForName(daemon.name)} (unreachable)`}
                 </Text>
                 {daemon.projects.map((project) => (
                   <View key={`${daemon.name}-${project.project}`}>
