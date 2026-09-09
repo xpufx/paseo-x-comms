@@ -56,6 +56,20 @@ export function cardSignal(env: CrossDaemonEnvelope, viewerAgentId: string): Car
 }
 
 /**
+ * Collapsed preview shows this many lines. Measured overflow (via
+ * onTextLayout) decides whether a Show more toggle appears at all.
+ */
+export const COLLAPSED_LINES = 3;
+
+/**
+ * Pure overflow rule for collapsible bodies: only bodies rendering more
+ * lines than the collapsed preview get a toggle. Short messages never do.
+ */
+export function isOverflowing(lineCount: number, maxLines: number = COLLAPSED_LINES): boolean {
+  return lineCount > maxLines;
+}
+
+/**
  * Splits a message body into its x-comms envelope (if present) and the
  * remaining human-visible text. The envelope is a prefix our server stamps on
  * every x-comms message; its mere presence is the signal we render on.

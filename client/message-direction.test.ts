@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { cardSignal, viewerDirection, type CrossDaemonEnvelope } from "./envelope.ts";
+import { cardSignal, isOverflowing, viewerDirection, COLLAPSED_LINES, type CrossDaemonEnvelope } from "./envelope.ts";
 
 function envelope(senderAgentId: string | null): CrossDaemonEnvelope {
   return {
@@ -43,5 +43,13 @@ describe("message direction signal", () => {
   it("viewerDirection matches cardSignal", () => {
     assert.equal(viewerDirection(envelope("me"), "me"), "outgoing");
     assert.equal(viewerDirection(envelope("peer-1"), "me"), "incoming");
+  });
+
+  it("overflow rule: only long bodies get a toggle", () => {
+    assert.equal(COLLAPSED_LINES, 3);
+    assert.equal(isOverflowing(1), false);
+    assert.equal(isOverflowing(3), false);
+    assert.equal(isOverflowing(4), true);
+    assert.equal(isOverflowing(40), true);
   });
 });

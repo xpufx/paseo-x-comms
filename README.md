@@ -6,6 +6,8 @@
 
 [paseo](https://paseo.sh) is an agent orchestrator: AI coding agents run on paseo daemons, each managing workspaces, tools, and permissions. **paseo-x-comms** lets agents on one daemon talk to agents on another — even across hosts — via the daemon relay (WebSocket + E2EE) or direct TCP.
 
+Scope: x-comms links one owner's daemons through one client UI. Pairing is explicit and local; stranger federation is out of scope (an experimental flag at most, post-1.0).
+
 This repo ships two things:
 
 * **Paseo plugin** (recommended) — UI + embedded MCP server. (This README is for the plugin. See below)

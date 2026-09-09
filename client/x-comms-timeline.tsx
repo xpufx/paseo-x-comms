@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { type PluginTimelineItemProps, type PluginTimelineTransformerContribution, type PluginTimelineRendererContribution } from "@getpaseo/plugin/client";
-import { Icon } from "@getpaseo/plugin/client/react-native";
-import { useMemo } from "react";
-import { Text, View } from "react-native";
-import { EnvelopeSchema, cardSignal, parseEnvelope, type CrossDaemonEnvelope } from "./envelope";
+import type { PluginTheme } from "@getpaseo/plugin";
+import { Icon, copyText, useToast } from "@getpaseo/plugin/client/react-native";
+import { useCallback, useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
+import { EnvelopeSchema, cardSignal, isOverflowing, parseEnvelope, type CrossDaemonEnvelope } from "./envelope";
 import { formatPeerDisplay, usePeerAlias } from "./peer-label";
 import { ViaXComms } from "./via-x-comms";
 
@@ -18,6 +19,68 @@ function senderLabel(env: CrossDaemonEnvelope, alias: string | null): string {
   const s = env.xComms.sender;
   const name = s.agentName ?? s.agentId ?? "unknown agent";
   return `${name} @ ${formatPeerDisplay(alias, s.daemonServerId)}`;
+}
+
+function MessageBody({ theme, body }: { theme: PluginTheme; body: string }) {
+  const toast = useToast();
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const onTextLayout = useCallback(
+    (e: { nativeEvent: { lines: unknown[] } }) => {
+      const next = isOverflowing(e.nativeEvent.lines.length);
+      setOverflows((prev) => (prev === next ? prev : next));
+    },
+    [],
+  );
+  const copy = useCallback(() => {
+    copyText(body).then(
+      () => toast.show("Copied", { variant: "success" }),
+      () => toast.error("Copy failed"),
+    );
+  }, [body, toast]);
+  if (!expanded) {
+    return (
+      <View>
+        <Text
+          style={{ color: theme.colors.foreground, fontSize: 13 }}
+          numberOfLines={3}
+          ellipsizeMode="tail"
+          onTextLayout={onTextLayout}
+        >
+          {body}
+        </Text>
+        {overflows ? (
+          <Pressable accessibilityRole="button" onPress={() => setExpanded(true)} hitSlop={8}>
+            <Text style={{ color: theme.colors.accent, fontSize: 12, marginTop: 2 }}>Show more</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  }
+  return (
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        borderRadius: 6,
+        padding: 8,
+        marginTop: 2,
+        flexDirection: "row",
+      }}
+    >
+      <Text style={{ color: theme.colors.foreground, fontSize: 13, flexShrink: 1, flexGrow: 1 }} selectable>
+        {body}
+      </Text>
+      <View style={{ flexDirection: "column", gap: 8, marginLeft: 8 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Copy message" onPress={copy} hitSlop={10}>
+          <Text style={{ color: theme.colors.accent, fontSize: 14 }}>⧉</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => setExpanded(false)} hitSlop={8}>
+          <Text style={{ color: theme.colors.accent, fontSize: 12 }}>Less</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 }
 
 function CrossDaemonMessage({ theme, agentId, item }: PluginTimelineItemProps<z.infer<typeof ItemSchema>>) {
@@ -42,7 +105,7 @@ function CrossDaemonMessage({ theme, agentId, item }: PluginTimelineItemProps<z.
         </Text>
       </View>
       {item.data.body.length > 0 ? (
-        <Text style={{ color: theme.colors.foreground, fontSize: 13 }}>{item.data.body}</Text>
+        <MessageBody theme={theme} body={item.data.body} />
       ) : null}
       <ViaXComms theme={theme} />
     </View>
