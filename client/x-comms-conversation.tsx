@@ -1,9 +1,10 @@
 import { usePaseo, useRpc } from "@getpaseo/plugin/client";
 import type { PluginTheme } from "@getpaseo/plugin";
-import { Modal } from "@getpaseo/plugin/client/react-native";
+import { Modal, ScrollView } from "@getpaseo/plugin/client/react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Clipboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Clipboard, Pressable, Text, TextInput, View } from "react-native";
+import type { NativeScrollEvent, NativeSyntheticEvent, ScrollView as NativeScrollView, StyleProp, ViewStyle } from "react-native";
 import { conversationSendRpc, introspectAgentsRpc, registryReadRpc } from "../shared/registry";
 import { deriveConversationThreads, deriveConversations, type ConversationMessage, type ConversationPartner, type ConversationThread } from "./conversations";
 import { formatCounterparty, formatPeerDisplay, splitCounterparty, useCounterpartyLabel, usePeerDisplay, type CounterpartyRef } from "./peer-label";
@@ -14,6 +15,46 @@ const sentCache = new Map<string, Map<string, ConversationMessage[]>>();
 
 function PeerText({ counterparty }: { counterparty: CounterpartyRef }) {
   return <>{useCounterpartyLabel(counterparty)}</>;
+}
+
+/**
+ * Host ScrollView that sticks to the bottom as content appends. Tracks
+ * whether the user is near the bottom on every scroll; only auto-scrolls
+ * while stuck, so reading history never yanks. resetKey re-arms the stick
+ * (e.g. when switching threads).
+ */
+function StickBottomScrollView({
+  style,
+  resetKey,
+  children,
+}: {
+  style?: StyleProp<ViewStyle>;
+  resetKey: string;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<NativeScrollView | null>(null);
+  const stick = useRef(true);
+  useEffect(() => {
+    stick.current = true;
+  }, [resetKey]);
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    stick.current = layoutMeasurement.height + contentOffset.y >= contentSize.height - 24;
+  }, []);
+  const onContentSizeChange = useCallback(() => {
+    if (stick.current) ref.current?.scrollToEnd({ animated: true });
+  }, []);
+  return (
+    <ScrollView
+      ref={ref}
+      style={style}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      onContentSizeChange={onContentSizeChange}
+    >
+      {children}
+    </ScrollView>
+  );
 }
 
 /**
@@ -170,7 +211,7 @@ export function CrossDaemonConversation({
       {conversations.isLoading ? (
         <ActivityIndicator />
       ) : conversations.data && conversations.data.length > 0 ? (
-        <ScrollView style={{ marginBottom: 12, maxHeight: 160 }}>
+        <StickBottomScrollView style={{ marginBottom: 12, maxHeight: 160 }} resetKey="threads">
           {conversations.data.map((c) => (
             <Pressable
               key={c.conversationId}
@@ -194,7 +235,7 @@ export function CrossDaemonConversation({
               </Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </StickBottomScrollView>
       ) : (
         <Text style={{ color: theme.colors.foregroundMuted, fontSize: 13, marginBottom: 8 }}>
           No x-comms conversations yet - pick a peer to start.
@@ -213,14 +254,17 @@ export function CrossDaemonConversation({
           const all = [...incoming, ...sent].sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
           if (all.length === 0) return <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12, marginBottom: 8, fontStyle: "italic" as const }}>No messages yet - send the first.</Text>;
           return (
-            <ScrollView style={{ maxHeight: 180, marginBottom: 8, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 6, padding: 6 }}>
+            <StickBottomScrollView
+              style={{ maxHeight: 180, marginBottom: 8, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 6, padding: 6 }}
+              resetKey={target.conversationId}
+            >
               {all.map((m) => (
                 <View key={m.id} style={{ marginBottom: 6, alignSelf: m.isIncoming ? "flex-start" as const : "flex-end" as const, maxWidth: "85%", backgroundColor: m.isIncoming ? theme.colors.surface1 : theme.colors.accent + "20", borderRadius: 6, padding: 6, borderWidth: 1, borderColor: m.isIncoming ? theme.colors.border : theme.colors.accent }}>
                   <Text style={{ color: theme.colors.foregroundMuted, fontSize: 10 }}>{m.isIncoming ? m.senderName : "You"} · {new Date(m.sentAt).toLocaleTimeString()}</Text>
                   <Text style={{ color: theme.colors.foreground, fontSize: 13 }}>{m.body}</Text>
                 </View>
               ))}
-            </ScrollView>
+            </StickBottomScrollView>
           );
         })()
       ) : null}
