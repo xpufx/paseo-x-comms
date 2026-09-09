@@ -4,7 +4,7 @@ import {
   type XCommsConversationsSnapshot,
   type XCommsThreadSnapshot,
 } from "../shared/conversations-snapshot.ts";
-import { parseEnvelope } from "../client/envelope.ts";
+import { parseEnvelope } from "../shared/envelope.ts";
 
 /**
  * Conversations snapshot writer (mesh visibility input). Daemon-local view

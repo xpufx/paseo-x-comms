@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { cardSignal, isOverflowing, viewerDirection, COLLAPSED_LINES, type CrossDaemonEnvelope } from "./envelope.ts";
+import { cardSignal, isOverflowing, viewerDirection, COLLAPSED_LINES, type CrossDaemonEnvelope } from "../shared/envelope.ts";
 
 function envelope(senderAgentId: string | null): CrossDaemonEnvelope {
   return {

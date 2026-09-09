@@ -1,5 +1,5 @@
 import { usePaseo } from "@getpaseo/plugin/client";
-import { parseEnvelope, type CrossDaemonEnvelope } from "./envelope.ts";
+import { parseEnvelope, type CrossDaemonEnvelope } from "../shared/envelope.ts";
 
 type PaseoApi = ReturnType<typeof usePaseo>;
 
