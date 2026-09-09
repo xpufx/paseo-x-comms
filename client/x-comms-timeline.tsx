@@ -11,6 +11,7 @@ const EnvelopeSchema = z.object({
   xComms: z.object({
     version: z.number(),
     type: z.string(),
+    direction: z.enum(["incoming", "outgoing"]).optional(),
     sender: z.object({
       agentId: z.string().nullable(),
       agentName: z.string().nullable(),
@@ -61,18 +62,37 @@ function senderLabel(env: CrossDaemonEnvelope, alias: string | null): string {
   return `${name} @ ${formatPeerDisplay(alias, s.daemonServerId)}`;
 }
 
-function CrossDaemonMessage({ theme, item }: PluginTimelineItemProps<z.infer<typeof ItemSchema>>) {
+export type MessageDirection = "incoming" | "outgoing";
+
+/**
+ * Viewer-relative direction. The wire envelope always stamps
+ * direction "outgoing" from the sender's side, so the renderer compares
+ * the sender id to the viewing agent: anything not from self arrived here.
+ */
+export function viewerDirection(env: CrossDaemonEnvelope, viewerAgentId: string): MessageDirection {
+  const senderId = env.xComms.sender.agentId;
+  return senderId !== null && senderId === viewerAgentId ? "outgoing" : "incoming";
+}
+
+function CrossDaemonMessage({ theme, agentId, item }: PluginTimelineItemProps<z.infer<typeof ItemSchema>>) {
   const alias = usePeerAlias(item.data.envelope.xComms.sender.daemonServerId);
   const label = useMemo(
     () => senderLabel(item.data.envelope, alias),
     [item.data.envelope, alias],
   );
+  const direction = viewerDirection(item.data.envelope, agentId);
+  const incoming = direction === "incoming";
+  const signalColor = incoming ? theme.colors.statusDanger : theme.colors.accent;
   return (
     <View style={{ paddingVertical: 4 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
-        <Icon name="PhoneOutgoing" size={14} color={theme.colors.accent} />
-        <Text style={{ color: theme.colors.accent, fontSize: 12, fontWeight: "600" as const }}>
-          x-comms · {label}
+        <Icon
+          name={incoming ? "PhoneIncoming" : "PhoneOutgoing"}
+          size={14}
+          color={signalColor}
+        />
+        <Text style={{ color: signalColor, fontSize: 12, fontWeight: "600" as const }}>
+          x-comms · {incoming ? "Incoming" : "Outgoing"} · {label}
         </Text>
       </View>
       {item.data.body.length > 0 ? (

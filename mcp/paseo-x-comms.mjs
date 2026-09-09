@@ -155,8 +155,12 @@ async function senderMetaBlock(signal, target = {}, sender = {}) {
   const m = await gatherSenderMeta(signal);
   const envelope = {
     xComms: {
-      version: 3,
+      version: 4,
       type: "x-comms.incoming_message",
+      // Direction of travel as stamped by the sender. Every message leaves
+      // its sender, so this is always "outgoing" on the wire; viewers
+      // derive incoming vs outgoing by comparing sender.agentId to self.
+      direction: "outgoing",
       sender: {
         agentId: sender.agentId ?? m.agentId,
         agentName: sender.agentName ?? m.agentName,
