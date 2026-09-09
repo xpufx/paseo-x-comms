@@ -3,5 +3,5 @@
   "requirements": {
     "paseo": ">=0.8.0"
   },
-  "build": [["sh", "-c", "for b in ${CHECK_BIN_NODE:-node} ${CHECK_BIN_NPM:-npm}; do command -v \"$b\" >/dev/null 2>&1 || { echo \"ERROR: required binary '$b' not found on daemon host PATH (install node and npm; see README prerequisites)\" >&2; exit 1; }; done"], ["npm", "install"]]
+  "build": [["node", "-e", "const fs=require('fs'),path=require('path');const bins=[process.env.CHECK_BIN_NODE||'node',process.env.CHECK_BIN_NPM||'npm'];const exts=process.platform==='win32'?(process.env.PATHEXT||'.EXE;.BAT;.CMD').split(';'):[''];let failed=false;for(const b of bins){const found=(process.env.PATH||'').split(path.delimiter).some(d=>exts.some(e=>{try{fs.accessSync(path.join(d,b+e),fs.constants.X_OK);return true;}catch{return false;}}));if(!found){console.error(`ERROR: required binary '${b}' not found on daemon host PATH (install node and npm; see README prerequisites)`);failed=true;}}if(failed)process.exit(1);"], ["npm", "install"]]
 }
