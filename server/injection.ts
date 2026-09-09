@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import {
   createPluginLogger,
   registerMcpInjection,
@@ -10,6 +10,7 @@ import {
 } from "paseo-plugin-helper/server";
 import type { PluginServerContext } from "@getpaseo/plugin/server";
 import { serverPath } from "./server-status.ts";
+import { stateDir } from "./registry.ts";
 
 const log = createPluginLogger("paseo-x-comms", { subsystem: "injection" });
 
@@ -44,8 +45,45 @@ export function injectionServerConfig(): McpStdioInjectionConfig {
   return {
     type: "stdio",
     command: resolveNodeCommand(process.execPath),
-    args: [serverPath()],
+    args: [syncStableServer()],
   };
+}
+
+/**
+ * Stable install path for the injected server. Plugin checkouts live under
+ * content-addressed directories that are replaced on every update, so any
+ * absolute checkout path baked into a saved agent config rots. The state
+ * dir survives updates, making this path stable across them.
+ */
+export const STABLE_BIN_DIRNAME = "bin";
+export const STABLE_SERVER_FILENAME = "paseo-x-comms.bundled.mjs";
+
+export function stableServerPath(stateDirPath: string = stateDir()): string {
+  return join(stateDirPath, STABLE_BIN_DIRNAME, STABLE_SERVER_FILENAME);
+}
+
+/**
+ * Copy the bundled server into the stable path when missing or changed.
+ * Content comparison (not version plumbing) decides refreshes, so any
+ * bundle change propagates on next plugin startup. Returns the stable path.
+ */
+export function syncStableServer(
+  source: string = serverPath(),
+  dest: string = stableServerPath(),
+): string {
+  mkdirSync(dirname(dest), { recursive: true });
+  let current: Buffer | null = null;
+  try {
+    current = readFileSync(dest);
+  } catch {
+    current = null;
+  }
+  const next = readFileSync(source);
+  if (!current || !current.equals(next)) {
+    writeFileSync(dest, next, { mode: 0o755 });
+    log.info(`injection: installed stable server at ${dest}`);
+  }
+  return dest;
 }
 
 /**
@@ -97,7 +135,13 @@ export function maybeRegisterInjection(
     return () => {};
   }
   const serverName = overrides?.serverName ?? injectionServerName();
-  const config = overrides?.config ?? injectionServerConfig();
+  let config: McpStdioInjectionConfig;
+  try {
+    config = overrides?.config ?? injectionServerConfig();
+  } catch (cause) {
+    log.error(`injection: stable server unavailable, skipping agent.create hook: ${cause instanceof Error ? cause.message : String(cause)}`);
+    return () => {};
+  }
   log.info(`injection: registering agent.create hook under key '${serverName}'`);
   return registerMcpInjection(server, { serverName, config });
 }

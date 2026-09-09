@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, renameSync, mkdirSync } from "node:fs";
-export { directHostMismatch } from "../shared/registry";
+export { directHostMismatch } from "../shared/registry.ts";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 

@@ -1,5 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type {
   AgentCreateInjectionRequest,
   McpInjectionHookHandler,
@@ -12,6 +15,8 @@ import {
   injectionServerName,
   maybeRegisterInjection,
   resolveNodeCommand,
+  stableServerPath,
+  syncStableServer,
 } from "./injection.ts";
 
 interface StubServer extends McpInjectionServer {
@@ -34,6 +39,19 @@ function createStubServer(): StubServer {
 }
 
 const KEY = `${INJECTION_KEY_PREFIX}srv_test123`;
+
+function withSandboxedHome(fn: (home: string) => void): void {
+  const home = mkdtempSync(join(tmpdir(), "xcomms-home-"));
+  const prevHome = process.env.HOME;
+  process.env.HOME = home;
+  try {
+    fn(home);
+  } finally {
+    if (prevHome === undefined) delete process.env.HOME;
+    else process.env.HOME = prevHome;
+    rmSync(home, { recursive: true, force: true });
+  }
+}
 const CONFIG = { type: "stdio" as const, command: process.execPath, args: ["/plugins/x-comms/mcp/paseo-x-comms.bundled.mjs"] };
 
 function requestWithUserServer(): AgentCreateInjectionRequest {
@@ -109,9 +127,11 @@ describe("mcp injection", () => {
   });
 
   it("builds a stdio config pointing at the bundled server", () => {
-    const config = injectionServerConfig();
-    assert.equal(config.type, "stdio");
-    assert.ok(config.args?.[0]?.endsWith("paseo-x-comms.bundled.mjs"));
+    withSandboxedHome(() => {
+      const config = injectionServerConfig();
+      assert.equal(config.type, "stdio");
+      assert.ok(config.args?.[0]?.endsWith("paseo-x-comms.bundled.mjs"));
+    });
   });
 
   it("never emits an Electron app binary as the server command", () => {
@@ -119,5 +139,54 @@ describe("mcp injection", () => {
     assert.equal(resolveNodeCommand("/Applications/Paseo.app/Contents/MacOS/Paseo"), "node");
     assert.equal(resolveNodeCommand("/usr/bin/node"), "/usr/bin/node");
     assert.equal(resolveNodeCommand(process.execPath), process.execPath);
+  });
+
+  it("resolves the stable path under the state dir bin", () => {
+    assert.equal(
+      stableServerPath("/fake/home/.paseo/paseo-x-comms"),
+      join("/fake/home/.paseo/paseo-x-comms", "bin", "paseo-x-comms.bundled.mjs"),
+    );
+  });
+
+  it("copies the bundle to the stable path and refreshes on change", () => {
+    const dir = mkdtempSync(join(tmpdir(), "xcomms-stable-"));
+    try {
+      const source = join(dir, "source.mjs");
+      const dest = join(dir, "state", "bin", "paseo-x-comms.bundled.mjs");
+      writeFileSync(source, "v1");
+      assert.equal(syncStableServer(source, dest), dest);
+      assert.equal(readFileSync(dest, "utf8"), "v1");
+      assert.equal(syncStableServer(source, dest), dest);
+      writeFileSync(source, "v2");
+      syncStableServer(source, dest);
+      assert.equal(readFileSync(dest, "utf8"), "v2");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("injected args point at the stable bin, never at /checkout/", () => {
+    withSandboxedHome((home) => {
+      const config = injectionServerConfig();
+      const [script] = config.args ?? [];
+      assert.ok(script, "injected config must carry the server script");
+      assert.ok(!script.includes("/checkout/"), `injected path must not rot on update: ${script}`);
+      assert.equal(script, join(home, ".paseo", "paseo-x-comms", "bin", "paseo-x-comms.bundled.mjs"));
+      assert.ok(existsSync(script), "stable server must exist after sync");
+    });
+  });
+
+  it("end-to-end injected config never contains /checkout/", () => {
+    withSandboxedHome(() => {
+      const server = createStubServer();
+      maybeRegisterInjection(server, { enabled: true }, { serverName: KEY });
+      const result = server.hooks.get("agent.create")!({
+        request: { config: { provider: "opencode", cwd: "/w" } },
+      }) as AgentCreateInjectionRequest;
+      const entry = result.config.mcpServers?.[KEY] as { args?: string[] } | undefined;
+      const [script] = entry?.args ?? [];
+      assert.ok(script, "hook must inject the server script");
+      assert.ok(!script.includes("/checkout/"), `injected path must not rot on update: ${script}`);
+    });
   });
 });
