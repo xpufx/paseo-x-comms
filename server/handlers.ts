@@ -205,6 +205,19 @@ export async function handleIntroduceAgents(input: {
         }
       }),
     );
+    for (const send of sends) {
+      if (!send.ok) continue;
+      const target = targets.find((t) => t.agentId === send.agentId && t.daemon === send.daemon);
+      const introduced = send.agentId === input.first.agentId && send.daemon === input.first.daemon
+        ? input.first
+        : input.second;
+      recordOutboundSend({
+        daemon: send.daemon,
+        agentId: send.agentId,
+        peerAgentName: introduced.name,
+        localAgentId: target?.fromAgentId ?? null,
+      });
+    }
     return { sends };
   } finally {
     client.close();
@@ -274,6 +287,11 @@ export async function handleConversationSend(input: { daemon: string; agentId: s
       prompt: input.prompt,
       fromAgentId: input.fromAgentId ?? null,
       fromAgentName: input.fromAgentName ?? null,
+    });
+    recordOutboundSend({
+      daemon: input.daemon,
+      agentId: input.agentId,
+      localAgentId: input.fromAgentId ?? null,
     });
     return { daemon: input.daemon, agentId: input.agentId, ok: true, error: null };
   } catch (cause) {
@@ -425,8 +443,9 @@ export function injectionEnabled(): boolean {
   return resolveInjectionEnabled(readUiPrefs());
 }
 
-export async function handleSnapshotRefresh() {
+export async function handleSnapshotRefresh(_input?: unknown, context?: PluginHandlerContext) {
   const snapshot = await refreshSnapshot();
+  if (context?.paseo) await reconcileInbound(context.paseo);
   return { updatedAt: snapshot.updatedAt };
 }
 
@@ -604,6 +623,7 @@ export async function handleDaemonDump(input: { daemon: string }) {
 }
 
 import { randomUUID } from "node:crypto";
+import type { PluginHandlerContext } from "@getpaseo/plugin/server";
 import {
   applyAnnounce,
   applyRetract,
@@ -615,13 +635,71 @@ import {
   type PresenceBirth,
 } from "./presence";
 import { invokePeerRpc, localServerId, resolvePeerTarget, type PeerTarget } from "./peer-channel";
+import {
+  detachLocalAgent,
+  prunePeer,
+  readConversationsSnapshot,
+  reconcileTimelines,
+  recordSend,
+  scanLocalTimelines,
+  writeConversationsSnapshot,
+  type TimelineScanner,
+} from "./conversations-snapshot.ts";
 
 /**
- * ServerIds this daemon has explicitly paired with (seed links). Inbound
- * presence is only accepted from these; anything else is dropped. This is
- * the receiver-side approximation of link identity: pairing is explicit,
- * gossip never introduces new links.
+ * serverId to registry alias for snapshot display. Offer-embedded ids first,
+ * synced identities second. Unknown ids render with a fallback alias.
  */
+function peerAliasMap(): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const daemon of readRegistry(currentRegistryPath()).daemons) {
+    if (!daemon.valid) continue;
+    const offerId = deriveHostFromValue(daemon.value);
+    if (offerId && !map.has(offerId)) map.set(offerId, daemon.name);
+  }
+  for (const [name, id] of Object.entries(readUiPrefs().daemonIdentities ?? {})) {
+    if (id && !map.has(id)) map.set(id, name);
+  }
+  return map;
+}
+
+function peerAliasFor(serverId: string): string | null {
+  return peerAliasMap().get(serverId) ?? null;
+}
+
+function recordOutboundSend(args: {
+  daemon: string;
+  agentId: string;
+  peerAgentName?: string | null;
+  localAgentId?: string | null;
+}): void {
+  const sendDaemon = daemonNameForServerId(args.daemon) ?? args.daemon;
+  const entry = readRegistry(currentRegistryPath()).daemons.find((d) => d.name === sendDaemon);
+  const peerServerId = identityFor(sendDaemon) ?? (entry ? deriveHostFromValue(entry.value) : null) ?? "";
+  const snapshot = readConversationsSnapshot();
+  writeConversationsSnapshot(recordSend(snapshot, {
+    peerAlias: sendDaemon,
+    peerServerId,
+    peerAgentId: args.agentId,
+    peerAgentName: args.peerAgentName ?? null,
+    localAgentId: args.localAgentId ?? null,
+    at: new Date().toISOString(),
+  }));
+}
+
+/**
+ * Reconcile inbound envelopes from local timelines into the snapshot.
+ * Best-effort: timeline failures never fail the calling RPC.
+ */
+async function reconcileInbound(paseo: TimelineScanner): Promise<void> {
+  try {
+    const timelines = await scanLocalTimelines(paseo);
+    const snapshot = readConversationsSnapshot();
+    writeConversationsSnapshot(reconcileTimelines(snapshot, timelines, peerAliasFor));
+  } catch (cause) {
+    log.error(`conversations: timeline reconcile failed: ${cause instanceof Error ? cause.message : String(cause)}`);
+  }
+}
 function knownPeerServerIds(): Set<string> {
   const ids = new Set<string>();
   for (const daemon of readRegistry(currentRegistryPath()).daemons) {
@@ -669,6 +747,11 @@ export async function handlePresenceRetract(input: { messageId: string; serverId
   const state = readPresence();
   const outcome = applyRetract(state, input.serverId, input.agentId, input.timestamp, input.messageId);
   writePresence(state);
+  if (outcome.applied) {
+    const conversations = readConversationsSnapshot();
+    const pruned = prunePeer(conversations, input.serverId, input.agentId);
+    if (pruned.removed) writeConversationsSnapshot(pruned.snapshot);
+  }
   return { applied: outcome.applied };
 }
 
@@ -763,6 +846,9 @@ export async function onLocalAgentArchived(agent: { id: string }): Promise<void>
   const state = readPresence();
   applyRetract(state, self, agent.id, now, randomUUID());
   writePresence(state);
+  const conversations = readConversationsSnapshot();
+  const detached = detachLocalAgent(conversations, agent.id);
+  if (detached.removed) writeConversationsSnapshot(detached.snapshot);
   for (const target of validPeerTargets()) {
     await flushPendingRetracts(target);
     const messageId = randomUUID();
