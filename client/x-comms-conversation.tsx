@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Clipboard, Pressable, Text, TextInput, View } from "react-native";
 import type { NativeScrollEvent, NativeSyntheticEvent, ScrollView as NativeScrollView, StyleProp, ViewStyle } from "react-native";
 import { conversationSendRpc, introspectAgentsRpc, registryReadRpc } from "../shared/registry";
-import { deriveConversationThreads, deriveConversations, type ConversationMessage, type ConversationPartner, type ConversationThread } from "./conversations";
+import { deriveConversationThreads, deriveConversations, mergeMessages, threadKeyForCounterparty, type ConversationMessage, type ConversationPartner, type ConversationThread } from "./conversations";
 import { formatCounterparty, formatPeerDisplay, splitCounterparty, useCounterpartyLabel, usePeerDisplay, type CounterpartyRef } from "./peer-label";
 
 const draftCache = new Map<string, string>();
@@ -191,14 +191,19 @@ export function CrossDaemonConversation({
   }, [agentId]);
   const pickTarget = useCallback((c: ConversationPartner) => setTargetCached(c), [setTargetCached]);
   const pickPeer = useCallback((daemon: string, a: { agentId: string; shortId: string; name: string }) => {
+    // Resolve the alias to its server id so the picked target keys exactly
+    // like the envelope-derived thread. A bare alias key never matches the
+    // merge lookup and the incoming side silently drops.
+    const daemonServerId = serverIdByName.get(daemon) ?? null;
+    const counterparty = { daemon, agentId: a.agentId, agentName: a.name, daemonServerId };
     setTargetCached({
-      conversationId: `${daemon}/${a.agentId}`,
-      counterparty: { daemon, agentId: a.agentId, agentName: a.name, daemonServerId: null },
+      conversationId: threadKeyForCounterparty(counterparty),
+      counterparty,
       lastActivity: new Date().toISOString(),
       messageCount: 0,
     });
     setPickerOpen(false);
-  }, [setTargetCached]);
+  }, [setTargetCached, serverIdByName]);
 
   return (
     <View style={{ padding: 12, flex: 1 }}>
@@ -251,7 +256,7 @@ export function CrossDaemonConversation({
           const thread = threads.data?.find((t: ConversationThread) => t.partner.conversationId === target.conversationId);
           const sent = sentCache.get(agentId)?.get(target.conversationId) ?? [];
           const incoming = thread?.messages ?? [];
-          const all = [...incoming, ...sent].sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
+          const all = mergeMessages(incoming, sent);
           if (all.length === 0) return <Text style={{ color: theme.colors.foregroundMuted, fontSize: 12, marginBottom: 8, fontStyle: "italic" as const }}>No messages yet - send the first.</Text>;
           return (
             <StickBottomScrollView

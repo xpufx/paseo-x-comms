@@ -1,5 +1,5 @@
 import { usePaseo } from "@getpaseo/plugin/client";
-import { parseEnvelope, type CrossDaemonEnvelope } from "./x-comms-timeline";
+import { parseEnvelope, type CrossDaemonEnvelope } from "./envelope.ts";
 
 type PaseoApi = ReturnType<typeof usePaseo>;
 
@@ -31,6 +31,30 @@ export interface ConversationThread {
 }
 
 /**
+ * Single shared thread key. Derive and the peer picker must agree, or the
+ * merge site compares different strings and one side silently drops. The
+ * server id wins when present; the alias or host is the fallback.
+ */
+export function threadKeyForCounterparty(cp: {
+  daemon: string | null;
+  daemonServerId: string | null;
+  agentId: string | null;
+}): string {
+  return `${cp.daemonServerId ?? cp.daemon ?? "?"}/${cp.agentId ?? "?"}`;
+}
+
+/**
+ * Interleave both directions by timestamp. Pure so the merge rule is
+ * unit-testable: incoming thread messages plus the local outbox.
+ */
+export function mergeMessages(
+  incoming: ConversationMessage[],
+  sent: ConversationMessage[],
+): ConversationMessage[] {
+  return [...incoming, ...sent].sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
+}
+
+/**
  * Derives the x-comms conversations an agent is part of by scanning its
  * timeline for our meta envelopes. No separate ledger file: the timeline is the
  * source of truth, so the result is never stale. Grouped by conversationId.
@@ -59,18 +83,19 @@ export async function deriveConversationThreads(
     const env: CrossDaemonEnvelope = parsed.envelope;
     const meta = env.xComms;
     const daemon = meta.sender.daemonServerId ?? meta.sender.host ?? null;
-    const id = `${daemon ?? "?"}/${meta.sender.agentId ?? "?"}`;
+    const counterparty = {
+      daemon,
+      agentId: meta.sender.agentId ?? null,
+      agentName: meta.sender.agentName ?? null,
+      daemonServerId: meta.sender.daemonServerId ?? null,
+    };
+    const id = threadKeyForCounterparty(counterparty);
     let thread = byConversation.get(id);
     if (!thread) {
       thread = {
         partner: {
           conversationId: id,
-          counterparty: {
-            daemon,
-            agentId: meta.sender.agentId ?? null,
-            agentName: meta.sender.agentName ?? null,
-            daemonServerId: meta.sender.daemonServerId ?? null,
-          },
+          counterparty,
           lastActivity: meta.sentAt,
           messageCount: 0,
         },
