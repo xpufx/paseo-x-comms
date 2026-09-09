@@ -3,5 +3,5 @@
   "requirements": {
     "paseo": ">=0.8.0"
   },
-  "build": [["npm", "install"]]
+  "build": [["sh", "-c", "for b in ${CHECK_BIN_NODE:-node} ${CHECK_BIN_NPM:-npm}; do command -v \"$b\" >/dev/null 2>&1 || { echo \"ERROR: required binary '$b' not found on daemon host PATH (install node and npm; see README prerequisites)\" >&2; exit 1; }; done"], ["npm", "install"]]
 }
