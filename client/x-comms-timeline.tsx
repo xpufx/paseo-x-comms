@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { Text, View } from "react-native";
 import { EnvelopeSchema, parseEnvelope, type CrossDaemonEnvelope } from "./envelope";
 import { formatPeerDisplay, usePeerAlias } from "./peer-label";
+import { ViaXComms } from "./via-x-comms";
 
 export { parseEnvelope, type CrossDaemonEnvelope };
 
@@ -55,6 +56,7 @@ function CrossDaemonMessage({ theme, agentId, item }: PluginTimelineItemProps<z.
       {item.data.body.length > 0 ? (
         <Text style={{ color: theme.colors.foreground, fontSize: 13 }}>{item.data.body}</Text>
       ) : null}
+      <ViaXComms theme={theme} />
     </View>
   );
 }

@@ -8,6 +8,7 @@ import type { NativeScrollEvent, NativeSyntheticEvent, ScrollView as NativeScrol
 import { conversationSendRpc, introspectAgentsRpc, registryReadRpc } from "../shared/registry";
 import { deriveConversationThreads, deriveConversations, mergeMessages, threadKeyForCounterparty, type ConversationMessage, type ConversationPartner, type ConversationThread } from "./conversations";
 import { formatCounterparty, formatPeerDisplay, splitCounterparty, useCounterpartyLabel, usePeerDisplay, type CounterpartyRef } from "./peer-label";
+import { ViaXComms } from "./via-x-comms";
 
 const draftCache = new Map<string, string>();
 const targetCache = new Map<string, ConversationPartner | null>();
@@ -362,8 +363,10 @@ export function CrossDaemonConversation({
               </View>
             ))}
           </ScrollView>
+          <ViaXComms theme={theme} />
         </Modal.Content>
       </Modal>
+      <ViaXComms theme={theme} />
     </View>
   );
 }

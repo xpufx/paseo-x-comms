@@ -2,6 +2,7 @@ import { type PluginTimelineItemProps, type PluginTimelineTransformerContributio
 import { Icon } from "@getpaseo/plugin/client/react-native";
 import { Badge, Card, CodeBlock, StatusDot } from "paseo-plugin-helper/client";
 import { Text, View } from "react-native";
+import { ViaXComms } from "./via-x-comms";
 import { usePeerDisplay } from "./peer-label";
 import { ToolCallCardSchema, summarizeToolCall, type ToolCallCardData } from "./tool-call";
 
@@ -34,6 +35,7 @@ function ToolCallCard({ theme, item }: PluginTimelineItemProps<ToolCallCardData>
       {data.output ? (
         <CodeBlock code={data.output} language="json" copyable maxHeight={220} />
       ) : null}
+      <ViaXComms theme={theme} />
     </Card>
   );
 }

@@ -6,6 +6,7 @@ import { Modal } from "@getpaseo/plugin/client/react-native";
 import { truncate } from "paseo-plugin-helper/shared";
 import { Badge, EmptyState, StatusDot } from "paseo-plugin-helper/client";
 import { formatPeerDisplay } from "./peer-label";
+import { ViaXComms } from "./via-x-comms";
 import {
   registryReadRpc,
   daemonAddRpc,
@@ -690,6 +691,7 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
             );
           })()}
             </View>
+          <ViaXComms theme={theme} />
         </Modal.Content>
       </Modal>
 
@@ -859,8 +861,10 @@ export function MainSurface({ theme, layout }: PluginSurfaceProps) {
               <Text style={styles.buttonTextSmall}>Cancel</Text>
             </Pressable>
           </View>
+          <ViaXComms theme={theme} />
         </Modal.Content>
       </Modal>
+      <ViaXComms theme={theme} />
     </ScrollView>
   );
 }
