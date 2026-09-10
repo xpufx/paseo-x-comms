@@ -26,7 +26,7 @@
     "@getpaseo/client": "^0.8.0-beta.1",
     "@getpaseo/protocol": "^0.8.0-beta.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "paseo-plugin-helper": "^0.4.0-beta.4"
+    "paseo-plugin-helper": "^0.4.0-beta.6"
   },
   "devDependencies": {
     "@getpaseo/plugin": "^0.8.0-beta.1",
