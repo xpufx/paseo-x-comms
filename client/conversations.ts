@@ -1,5 +1,6 @@
 import { usePaseo } from "@getpaseo/plugin/client";
-import { parseEnvelope, type CrossDaemonEnvelope } from "../shared/envelope.ts";
+import { parseEnvelope, viewerDirection, type CrossDaemonEnvelope } from "../shared/envelope.ts";
+import { isXCommsTool } from "./tool-call.ts";
 
 type PaseoApi = ReturnType<typeof usePaseo>;
 
@@ -23,6 +24,7 @@ export interface ConversationMessage {
   isIncoming: boolean;
   senderName: string | null;
   daemon: string | null;
+  userSent?: boolean;
 }
 
 export interface ConversationThread {
@@ -44,14 +46,47 @@ export function threadKeyForCounterparty(cp: {
 }
 
 /**
- * Interleave both directions by timestamp. Pure so the merge rule is
- * unit-testable: incoming thread messages plus the local outbox.
+ * Match two counterparties across alias vs serverId discrepancies.
+ */
+export function isCounterpartyMatch(
+  a: { daemon: string | null; daemonServerId?: string | null; agentId: string | null },
+  b: { daemon: string | null; daemonServerId?: string | null; agentId: string | null },
+): boolean {
+  if (!a.agentId || !b.agentId || a.agentId !== b.agentId) return false;
+  const aServer = a.daemonServerId ?? (a.daemon?.startsWith("srv_") ? a.daemon : null);
+  const bServer = b.daemonServerId ?? (b.daemon?.startsWith("srv_") ? b.daemon : null);
+  if (aServer && bServer) {
+    return aServer === bServer;
+  }
+  if (!aServer && !bServer && a.daemon && b.daemon) {
+    return a.daemon === b.daemon;
+  }
+  return true;
+}
+
+/**
+ * Interleave both directions by timestamp and deduplicate optimistic vs recorded sends.
  */
 export function mergeMessages(
   incoming: ConversationMessage[],
   sent: ConversationMessage[],
 ): ConversationMessage[] {
-  return [...incoming, ...sent].sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
+  const seenIds = new Set<string>();
+  const out: ConversationMessage[] = [];
+  for (const m of [...incoming, ...sent]) {
+    if (seenIds.has(m.id)) continue;
+    const isDup = out.some(
+      (existing) =>
+        existing.body === m.body &&
+        existing.isIncoming === m.isIncoming &&
+        Math.abs(new Date(existing.sentAt).getTime() - new Date(m.sentAt).getTime()) < 3000,
+    );
+    if (!isDup) {
+      seenIds.add(m.id);
+      out.push(m);
+    }
+  }
+  return out.sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
 }
 
 /**
@@ -74,46 +109,121 @@ export async function deriveConversationThreads(
   const handle = paseo.agents.ref(agentId);
   const timeline = await handle.timeline.refetch();
   const byConversation = new Map<string, ConversationThread>();
-  for (const entry of timeline.entries) {
-    const item = entry.item as { type?: string; text?: string };
-    const text = item?.text;
-    if (!text || (item.type !== "user_message" && item.type !== "assistant_message")) continue;
-    const parsed = parseEnvelope(text);
-    if (!parsed) continue;
-    const env: CrossDaemonEnvelope = parsed.envelope;
-    const meta = env.xComms;
-    const daemon = meta.sender.daemonServerId ?? meta.sender.host ?? null;
-    const counterparty = {
-      daemon,
-      agentId: meta.sender.agentId ?? null,
-      agentName: meta.sender.agentName ?? null,
-      daemonServerId: meta.sender.daemonServerId ?? null,
-    };
+
+  function addMessage(
+    counterparty: { daemon: string | null; agentId: string | null; agentName: string | null; daemonServerId: string | null },
+    msgData: Omit<ConversationMessage, "id"> & { id?: string },
+  ) {
     const id = threadKeyForCounterparty(counterparty);
     let thread = byConversation.get(id);
+    if (!thread) {
+      for (const t of byConversation.values()) {
+        if (isCounterpartyMatch(t.partner.counterparty, counterparty)) {
+          thread = t;
+          break;
+        }
+      }
+    }
     if (!thread) {
       thread = {
         partner: {
           conversationId: id,
           counterparty,
-          lastActivity: meta.sentAt,
+          lastActivity: msgData.sentAt,
           messageCount: 0,
         },
         messages: [],
       };
       byConversation.set(id, thread);
     }
-    thread.messages.push({
-      id: `${id}-${meta.sentAt}-${thread.messages.length}`,
-      body: parsed.body,
-      sentAt: meta.sentAt,
-      isIncoming: true,
-      senderName: meta.sender.agentName ?? meta.sender.agentId ?? "peer",
-      daemon,
-    });
+    const msgId = msgData.id ?? `${thread.partner.conversationId}-${msgData.sentAt}-${thread.messages.length}`;
+    thread.messages.push({ ...msgData, id: msgId });
     thread.partner.messageCount += 1;
-    if (meta.sentAt > thread.partner.lastActivity) thread.partner.lastActivity = meta.sentAt;
+    if (msgData.sentAt > thread.partner.lastActivity) {
+      thread.partner.lastActivity = msgData.sentAt;
+    }
   }
-  for (const thread of byConversation.values()) thread.messages.sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
+
+  for (const entry of timeline.entries) {
+    const item = entry.item as { type?: string; text?: string; name?: string; detail?: unknown } | undefined;
+    if (!item) continue;
+
+    // Case 1: user_message or assistant_message carrying [x-comms] wire envelope
+    if (item.type === "user_message" || item.type === "assistant_message") {
+      const text = item.text;
+      if (!text) continue;
+      const parsed = parseEnvelope(text);
+      if (!parsed) continue;
+      const env: CrossDaemonEnvelope = parsed.envelope;
+      const meta = env.xComms;
+      const isIncoming = viewerDirection(env, agentId) === "incoming";
+      const daemon = isIncoming
+        ? (meta.sender.daemonServerId ?? meta.sender.host ?? null)
+        : (meta.target.daemon ?? null);
+      const counterparty = isIncoming
+        ? {
+            daemon,
+            agentId: meta.sender.agentId ?? null,
+            agentName: meta.sender.agentName ?? null,
+            daemonServerId: meta.sender.daemonServerId ?? null,
+          }
+        : {
+            daemon,
+            agentId: meta.target.agentId ?? null,
+            agentName: null,
+            daemonServerId: daemon && daemon.startsWith("srv_") ? daemon : null,
+          };
+      const senderName = isIncoming
+        ? (meta.sender.agentName ?? meta.sender.agentId ?? "peer")
+        : "You";
+      addMessage(counterparty, {
+        body: parsed.body,
+        sentAt: meta.sentAt,
+        isIncoming,
+        senderName,
+        daemon,
+        userSent: !isIncoming,
+      });
+      continue;
+    }
+
+    // Case 2: tool_call invoking x_comms_send
+    if (item.type === "tool_call" || (item.name && isXCommsTool(item.name))) {
+      const name = item.name ?? "";
+      if (isXCommsTool(name) && name.includes("send")) {
+        const detail = item.detail as { input?: Record<string, unknown> } | undefined;
+        const input = detail && typeof detail === "object" ? detail.input : undefined;
+        if (input && typeof input === "object") {
+          const targetDaemon = typeof input.daemon === "string" ? input.daemon : null;
+          const targetAgentId = typeof input.agentId === "string" ? input.agentId : null;
+          const prompt = typeof input.prompt === "string" ? input.prompt : "";
+          if (targetAgentId) {
+            const daemonServerId = targetDaemon && targetDaemon.startsWith("srv_") ? targetDaemon : null;
+            const counterparty = {
+              daemon: targetDaemon,
+              agentId: targetAgentId,
+              agentName: null,
+              daemonServerId,
+            };
+            const sentAt = (entry as { timestamp?: string }).timestamp ?? new Date().toISOString();
+            const fromUser = input.fromAgentName === "User" || !input.fromAgentId || input.fromAgentId === agentId;
+            addMessage(counterparty, {
+              id: `tool-send-${targetAgentId}-${sentAt}-${prompt.slice(0, 8)}`,
+              body: prompt,
+              sentAt,
+              isIncoming: false,
+              senderName: fromUser ? "You" : (typeof input.fromAgentName === "string" ? input.fromAgentName : "Agent"),
+              daemon: targetDaemon,
+              userSent: fromUser,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  for (const thread of byConversation.values()) {
+    thread.messages.sort((a, b) => (a.sentAt < b.sentAt ? -1 : 1));
+  }
   return [...byConversation.values()].sort((a, b) => (a.partner.lastActivity < b.partner.lastActivity ? 1 : -1));
 }

@@ -97,4 +97,97 @@ describe("conversation threads", () => {
     assert.deepEqual(mergeMessages([], [sent("s1", "2026-09-09T10:05:00.000Z")]).length, 1);
     assert.deepEqual(mergeMessages([], []).length, 0);
   });
+  it("derives a two-sided conversation thread with both incoming and outgoing messages", async () => {
+    const paseo = {
+      agents: {
+        ref: () => ({
+          timeline: {
+            refetch: async () => ({
+              entries: [
+                {
+                  item: { type: "user_message", text: envelope("peer-1", "2026-09-09T10:00:00.000Z") },
+                  timestamp: "2026-09-09T10:00:00.000Z",
+                },
+                {
+                  item: {
+                    type: "tool_call",
+                    name: "x_comms_send",
+                    detail: {
+                      input: {
+                        daemon: "srv_remote",
+                        agentId: "peer-1",
+                        prompt: "hello from local agent",
+                        fromAgentId: "me",
+                      },
+                    },
+                  },
+                  timestamp: "2026-09-09T10:05:00.000Z",
+                },
+                {
+                  item: { type: "user_message", text: envelope("peer-1", "2026-09-09T10:10:00.000Z") },
+                  timestamp: "2026-09-09T10:10:00.000Z",
+                },
+              ],
+            }),
+          },
+        }),
+      },
+    };
+
+    const threads = await deriveConversationThreads(paseo as never, "me");
+    assert.equal(threads.length, 1);
+    assert.equal(threads[0].partner.conversationId, "srv_remote/peer-1");
+    assert.equal(threads[0].messages.length, 3);
+    assert.deepEqual(
+      threads[0].messages.map((m) => m.isIncoming),
+      [true, false, true],
+    );
+    assert.equal(threads[0].messages[0].senderName, "Remote");
+    assert.equal(threads[0].messages[1].senderName, "You");
+    assert.equal(threads[0].messages[1].body, "hello from local agent");
+    assert.equal(threads[0].messages[1].userSent, true);
+    assert.equal(threads[0].messages[2].senderName, "Remote");
+  });
+
+  it("matches counterparties across alias and serverId in thread derivation", async () => {
+    const paseo = {
+      agents: {
+        ref: () => ({
+          timeline: {
+            refetch: async () => ({
+              entries: [
+                {
+                  item: { type: "user_message", text: envelope("peer-1", "2026-09-09T10:00:00.000Z") },
+                  timestamp: "2026-09-09T10:00:00.000Z",
+                },
+                {
+                  item: {
+                    type: "tool_call",
+                    name: "x_comms_send",
+                    detail: {
+                      input: {
+                        daemon: "remote-host",
+                        agentId: "peer-1",
+                        prompt: "outbound reply with alias",
+                        fromAgentId: "me",
+                      },
+                    },
+                  },
+                  timestamp: "2026-09-09T10:04:00.000Z",
+                },
+              ],
+            }),
+          },
+        }),
+      },
+    };
+
+    const threads = await deriveConversationThreads(paseo as never, "me");
+    assert.equal(threads.length, 1);
+    assert.equal(threads[0].messages.length, 2);
+    assert.deepEqual(
+      threads[0].messages.map((m) => m.isIncoming),
+      [true, false],
+    );
+  });
 });
